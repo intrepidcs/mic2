@@ -5,4 +5,14 @@ edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+
+[features]
+default = ["gps", "io", "audio"]
+gps = []
+io = []
+audio = []
+
 [dependencies]
+nmea-parser = "0.10.0"
+serialport = "4.2.1"
+sfml = "0.20.0"

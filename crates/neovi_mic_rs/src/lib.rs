@@ -1,14 +1,11 @@
-pub fn add(left: usize, right: usize) -> usize {
-    left + right
-}
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+#[cfg(feature="gps")]
+pub mod gps;
 
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
-    }
-}
+#[cfg(feature="audio")]
+pub mod audio;
+
+#[cfg(feature="io")]
+pub mod io;
+
+
