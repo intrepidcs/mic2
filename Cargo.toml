@@ -1,0 +1,4 @@
+[workspace]
+members = [
+    "crates/neovi_mic_rs"
+]
