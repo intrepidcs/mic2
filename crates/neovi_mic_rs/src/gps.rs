@@ -3,7 +3,7 @@ use core::panic;
 use serialport::{self, SerialPortType, UsbPortInfo};
 use nmea_parser::NmeaParser;
 
-fn find_gps_serial_port() -> String {
+pub fn find_gps_serial_port() -> String {
     let ports = serialport::available_ports().expect("No Serial Ports found!");
     let mut com_port = None;
     for port in ports {
