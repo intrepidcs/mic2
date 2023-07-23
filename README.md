@@ -66,20 +66,24 @@ neoVI MIC 2 is a handheld pendant accessory with USB Trigger, GPS and microphone
 
 ### **Dependencies**
 
-- [Rust](https://www.rust-lang.org/) (1.69.0)
-- [libsfml](http://www.sfml-dev.org/)
-- Python 3.7 - 3.10 (>=3.11 broken for WASM currently [See issue here](https://github.com/wasmerio/wasmer-python/issues/696))
+- [Rust 1.69.0](https://www.rust-lang.org/)
+- [libsfml 2.6.x](http://www.sfml-dev.org/)
+- [Python 3.7 - 3.10](http://python.org) (>=3.11 broken for WASM currently [See issue here](https://github.com/wasmerio/wasmer-python/issues/696))
 
 ##### Debian
 - ```sudo apt-get install libsfml-dev```
 
 ##### OpenSUSE
 
-- ``` zypper install libsfml2-2_5```
+- ```sudo zypper install libsfml2-2_5```
 
 ##### Fedora
 
-- ```dnf install SFML-devel```
+- ```sudo dnf install SFML-devel```
+
+##### Arch
+
+- ```sudo pacman -S sfml```
 
 ##### Windows
 
