@@ -1,4 +1,7 @@
+use std::fmt;
 
+
+#[derive(Debug, Clone, PartialEq)]
 pub enum Error {
     InvalidDevice(String),
 
@@ -23,7 +26,7 @@ impl From<&str> for Error {
 /// Generic crate Result object
 pub type Result<T> = std::result::Result<T, Error>;
 
-#[derive(Debug, Clone, default)]
+#[derive(Debug, Clone, Default)]
 pub struct NeoVIMIC {
     /// Serial number of the neoVI MIC, MCxxxx
     serial_number: String,
@@ -35,11 +38,10 @@ pub struct NeoVIMIC {
     /// Index of the FTDI device attached to the neoVI MIC. This is for IO
     /// control of the device (button, speaker, and LEDs).
     ftdi_index: u32,
-};
+}
 
 impl NeoVIMIC {
-    pub fn new(index: u32) -> Result<Self> {
-        todo!();
+    pub fn new(_index: u32) -> Result<Self> {
         Ok(
             Self {
             ..Default::default()
@@ -48,10 +50,9 @@ impl NeoVIMIC {
     }
 
     pub fn from_serial_number(serial_number: impl Into<String>) -> Result<Self> {
-        todo!();
         Ok(
             Self {
-                serial_number,
+                serial_number: serial_number.into(),
                 ..Default::default()
         })
     }

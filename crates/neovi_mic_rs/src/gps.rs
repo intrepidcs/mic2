@@ -1,5 +1,3 @@
-use core::panic;
-
 use serialport::{self, SerialPortType, UsbPortInfo};
 use nmea_parser::NmeaParser;
 
