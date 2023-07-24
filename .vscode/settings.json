@@ -1,0 +1,5 @@
+{
+    "rust-analyzer.linkedProjects": [
+        "./crates/neovi_mic_rs/Cargo.toml"
+    ]
+}
