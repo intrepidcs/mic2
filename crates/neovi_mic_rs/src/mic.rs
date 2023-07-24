@@ -1,30 +1,4 @@
-use std::fmt;
-
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum Error {
-    InvalidDevice(String),
-
-}
-
-impl std::error::Error for Error {}
-
-impl fmt::Display for Error {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match &self {
-            Self::InvalidDevice(s) => write!(f, "Invalid Device: {:#?}", s),
-        }
-    }
-}
-
-impl From<&str> for Error {
-    fn from(value: &str) -> Self {
-        Self::InvalidDevice(value.to_string())
-    }
-}
-
-/// Generic crate Result object
-pub type Result<T> = std::result::Result<T, Error>;
+use crate::types::Result;
 
 #[derive(Debug, Clone, Default)]
 pub struct NeoVIMIC {
