@@ -29,6 +29,16 @@ neoVI MIC 2 is a handheld pendant accessory with USB Trigger, GPS and microphone
 
 ## **Getting Started**
 
+
+### udev rules
+
+neoVI MIC2 needs permission to access the IO portion of the device.
+Copy [99-intrepidcs.rules](99-intrepidcs.rules) to `/etc/udev/rules.d`
+```
+cp 99-intrepidcs.rules /etc/udev/rules.d/
+udevadm control --reload-rules && udevadm trigger
+```
+
 ### **Rust**
 
 `cargo add neovi_mic`
