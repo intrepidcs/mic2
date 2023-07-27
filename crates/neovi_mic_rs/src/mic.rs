@@ -56,18 +56,7 @@ impl UsbDeviceInfo {
 #[derive(Debug, Clone, Default)]
 pub struct NeoVIMIC {
     usb_hub: UsbDeviceInfo,
-    usb_children: Vec<UsbDeviceInfo>, /*
-                                      /// Serial number of the neoVI MIC, MCxxxx
-                                      serial_number: String,
-                                      /// Serial port identifier for the GPS functionality. Some devices
-                                      /// don't have GPS so this is optional.
-                                      gps_serial_port: Option<String>,
-                                      /// Audio Capture device name attached to the neoVI MIC.
-                                      audio_name: String,
-                                      /// Index of the FTDI device attached to the neoVI MIC. This is for IO
-                                      /// control of the device (button, speaker, and LEDs).
-                                      ftdi_index: u32,
-                                      */
+    usb_children: Vec<UsbDeviceInfo>,
 }
 
 pub fn find_neovi_mics() -> Result<Vec<NeoVIMIC>> {
@@ -123,16 +112,32 @@ pub fn find_neovi_mics() -> Result<Vec<NeoVIMIC>> {
 }
 
 impl NeoVIMIC {
-    pub fn new(_index: u32) -> Result<Self> {
-        Ok(Self {
-            ..Default::default()
-        })
+    /// Returns true if this neoVI MIC2 has GPS capabilities, false otherwise
+    pub fn has_gps(&self) -> bool {
+        for child in &self.usb_children {
+            if child.device_type == UsbDeviceType::GPS {
+                return true;
+            }
+        }
+        false
     }
 
-    pub fn from_serial_number(serial_number: impl Into<String>) -> Result<Self> {
-        Ok(Self {
-            ..Default::default()
-        })
+    pub fn get_serial_number(&self) -> String {
+        for child in &self.usb_children {
+            if child.device_type == UsbDeviceType::FT245R {
+                return child.serial_number.clone().unwrap_or_default();
+            }
+        }
+        "".into()
+    }
+
+    pub fn get_ftdi_device(&self) -> Result<UsbDeviceInfo> {
+        for device in &self.usb_children {
+            if device.device_type == UsbDeviceType::FT245R {
+                return Ok(device.clone());
+            }
+        }
+        Err(crate::types::Error::InvalidDevice("No valid FTDI devices found".into()))
     }
 }
 
@@ -143,6 +148,15 @@ mod tests {
     #[test]
     fn test_find_neovi_mics() {
         let devices = find_neovi_mics().expect("Expected at least one neoVI MIC2!");
-        println!("{devices:#X?}")
+        println!("{devices:#X?}");
+
+        println!("Found {} device(s)", devices.len());
+        for device in &devices {
+            print!("neoVI MIC2 {} ", {device.get_serial_number()});
+            match device.has_gps() {
+                true => println!("with GPS"),
+                false => println!(""),
+            }
+        }
     }
 }

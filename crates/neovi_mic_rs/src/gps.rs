@@ -1,5 +1,5 @@
-use serialport::{self, SerialPortType, SerialPortInfo, UsbPortInfo, ErrorKind};
-use nmea_parser::NmeaParser;
+use serialport::{self, SerialPortType, SerialPortInfo, ErrorKind};
+//use nmea_parser::NmeaParser;
 use crate::types::{Error, Result};
 
 impl From<serialport::Error> for Error {

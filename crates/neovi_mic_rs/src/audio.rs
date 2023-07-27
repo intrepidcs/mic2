@@ -21,3 +21,4 @@ pub fn record_default_capture() {
         panic!("Failed to save file!");
     }
 }
+

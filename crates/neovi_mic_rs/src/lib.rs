@@ -1,4 +1,3 @@
-
 pub mod types;
 
 #[cfg(feature="gps")]
