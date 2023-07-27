@@ -141,7 +141,7 @@ mod test {
             let mut io_device = IODevice::from(&ftdi_device).unwrap();
             io_device.open().unwrap();
             io_device.set_bitmode(0xFF).unwrap();
-            std::thread::sleep(std::time::Duration::from_secs(1));
+            std::thread::sleep(std::time::Duration::from_secs_f64(0.35f64));
             io_device.set_bitmode(0).unwrap();
             let pins = io_device.read_pins().unwrap();
             println!("Pins: {pins:#02x}");
@@ -149,4 +149,3 @@ mod test {
         }
     }
 }
-g
