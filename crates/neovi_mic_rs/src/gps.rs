@@ -16,10 +16,9 @@ pub fn find_gps_serial_ports() -> Result<Vec<SerialPortInfo>> {
     let ports = ports.into_iter().filter(|p| {
         match &p.port_type {
             SerialPortType::UsbPort(upi) => {
-                // If we don't have a serial number, nothing to match here
-                if upi.serial_number.is_none() {
-                    false
-                } else if upi.serial_number.as_ref().unwrap().starts_with("MC") {
+                if upi.vid == 0x1546 && upi.pid == 0x01A8 {
+                    true
+                } else if upi.vid == 0x1546 && upi.pid == 0x01A7 {
                     true
                 } else {
                     false
@@ -47,8 +46,11 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_find_gps_serial_port() {
+    fn test_find_gps_serial_port() -> Result<()> {
+        let ports = find_gps_serial_ports()?;
+        println!("{ports:#X?}");
         let port: SerialPortInfo = find_first_gps_serial_port().expect("Expected at least one device!");
-        println!("{port:#?}")
+        println!("{port:#?}");
+        Ok(())
     }
 }
