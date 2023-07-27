@@ -17,8 +17,17 @@ pub fn record_default_capture() {
     println!("Finished Recording");
     
     let buffer = recorder.buffer();
-    if !buffer.save_to_file("~/test.wav") {
+    if !buffer.save_to_file("/home/drebbe/test.wav") {
         panic!("Failed to save file!");
     }
 }
 
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test_record_default_capture() {
+        record_default_capture();
+    }
+}
