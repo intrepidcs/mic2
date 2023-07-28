@@ -1,14 +1,44 @@
 use crate::{mic::UsbDeviceInfo, types::Result};
+use bitflags::bitflags;
 use libftdi1_sys::{
     ftdi_context, ftdi_new, ftdi_read_pins, ftdi_set_bitmode, ftdi_usb_close,
     ftdi_usb_open_bus_addr,
 };
+
+bitflags! {
+    /// FTDI CBUS Pin Configuration
+    ///
+    /// CBUS0 = Buzzer (Output - High = on)
+    /// CBUS1 = Button (Input)
+    /// CBUS2 = GPS LED (Output - High = on)
+    /// CBUS3 = N/C
+    #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+    pub struct IODeviceBitMode : u8 {
+        const None = 0x0;
+        const Buzzer = 0x1;
+        const Button = 0x2;
+        const GPSLed = 0x4;
+        const CBUS3 = 0x8;
+        const BuzzerMask = 0x10;
+        const ButtonMask = 0x20;
+        const GPSLedMask = 0x40;
+        const CBUS3Mask = 0x80;
+
+        const DefaultMask = Self::BuzzerMask.bits() | Self::GPSLedMask.bits();
+    }
+}
 
 #[derive(Debug, Clone)]
 pub struct IODevice {
     usb_device_info: UsbDeviceInfo,
     context: *mut ftdi_context,
     is_open: bool,
+}
+
+impl Drop for IODevice {
+    fn drop(&mut self) {
+        let _ = self.close();
+    }
 }
 
 impl IODevice {
@@ -81,7 +111,7 @@ impl IODevice {
     /// CBUS2 = GPS LED
     /// CBUS3 = N/C
     ///
-    pub fn set_bitmode(&self, bitmask: u8) -> Result<()> {
+    pub fn set_bitmode_raw(&self, bitmask: u8) -> Result<()> {
         let result = unsafe {
             ftdi_set_bitmode(
                 self.context,
@@ -104,6 +134,10 @@ impl IODevice {
         Ok(())
     }
 
+    pub fn set_bitmode(&self, bitmask: IODeviceBitMode) -> Result<()> {
+        self.set_bitmode_raw(bitmask.bits() as u8)
+    }
+
     /// Directly read pin state, circumventing the read buffer. Useful for bitbang mode.
     ///
     /// CBUS0 = Buzzer
@@ -111,7 +145,7 @@ impl IODevice {
     /// CBUS2 = GPS LED
     /// CBUS3 = N/C
     ///
-    pub fn read_pins(&self) -> Result<u8> {
+    pub fn read_pins_raw(&self) -> Result<u8> {
         let mut pins: u8 = 0;
         let result = unsafe { ftdi_read_pins(self.context, &mut pins) };
         let error_code: String = match result {
@@ -123,7 +157,14 @@ impl IODevice {
         if result != 0 {
             return Err(crate::types::Error::CriticalError(error_code));
         };
+        // the bitbang_cbus.c example has all the mask values masked, I'm guessing it doesn't
+        // read back correctly.
+        pins &= 0xf;
         Ok(pins)
+    }
+
+    pub fn read_pins(&self) -> Result<IODeviceBitMode> {
+        Ok(IODeviceBitMode::from_bits(self.read_pins_raw()?).unwrap_or(IODeviceBitMode::None))
     }
 }
 
@@ -134,18 +175,28 @@ mod test {
     use super::*;
 
     #[test]
-    fn test_io_find_all() {
-        let devices = find_neovi_mics().unwrap();
-        for device in devices {
-            let ftdi_device = device.get_ftdi_device().unwrap();
-            let mut io_device = IODevice::from(&ftdi_device).unwrap();
-            io_device.open().unwrap();
-            io_device.set_bitmode(0xFF).unwrap();
-            std::thread::sleep(std::time::Duration::from_secs_f64(0.35f64));
-            io_device.set_bitmode(0).unwrap();
-            let pins = io_device.read_pins().unwrap();
-            println!("Pins: {pins:#02x}");
-            io_device.close().unwrap();
+    fn test_io() -> Result<()> {
+        let devices = find_neovi_mics()?;
+        if devices.len() == 0 {
+            panic!("Need at least one neoVI MIC connected, found 0 devices...");
         }
+        for device in &devices {
+            let ftdi_device = device.get_ftdi_device()?;
+            let mut io_device = IODevice::from(&ftdi_device)?;
+            io_device.open()?;
+
+            // Test the buzzer
+            io_device.set_bitmode(IODeviceBitMode::DefaultMask | IODeviceBitMode::Buzzer)?;
+            std::thread::sleep(std::time::Duration::from_secs_f64(0.1f64));
+            let pins = io_device.read_pins()?;
+            assert_eq!(pins, IODeviceBitMode::Buzzer, "Expected Buzzer to be enabled!");
+
+            // Test the GPS LED
+            io_device.set_bitmode(IODeviceBitMode::DefaultMask | IODeviceBitMode::GPSLed)?;
+            std::thread::sleep(std::time::Duration::from_secs_f64(0.1f64));
+            let pins = io_device.read_pins()?;
+            assert_eq!(pins, IODeviceBitMode::GPSLed, "Expected GPS LED to be enabled!");
+        }
+        Ok(())
     }
 }
