@@ -1,6 +1,5 @@
 use crate::types::{Error, Result};
 use core::time;
-use std::cell::RefCell;
 
 use regex::Regex;
 use sfml::{self, audio::SoundBufferRecorder};
@@ -16,12 +15,12 @@ pub struct Audio {
 }
 
 impl Audio {
-    pub fn find_neovi_mic2_audio() -> Result<RefCell<Vec<Self>>> {
+    pub fn find_neovi_mic2_audio() -> Result<Vec<Self>> {
         // "Monitor of PCM2912A Audio Codec Analog Stereo"
         // "Monitor of PCM2912A Audio Codec Analog Stereo #2"
         let re = Regex::new(r"Monitor of PCM2912A Audio Codec").unwrap();
         let re_index = Regex::new(r"\d+$").unwrap();
-        let capture_devices = RefCell::new(Vec::new());
+        let mut capture_devices = Vec::new();
 
         if !sfml::audio::capture::is_available() {
             return Err(Error::CriticalError("Audio capture is unavailable!".into()));
@@ -41,7 +40,7 @@ impl Audio {
             let mut recorder = SoundBufferRecorder::new();
             recorder.set_device(device.to_str().unwrap()).unwrap();
             // Create the Audio device
-            capture_devices.borrow_mut().push(Self {
+            capture_devices.push(Self {
                 capture_name: device.to_string(),
                 index,
                 recorder,
@@ -99,11 +98,19 @@ mod test {
 
     #[test]
     fn test_find_neovi_mic2_capture() -> Result<()> {
-        let devices = Audio::find_neovi_mic2_audio()?;
+        let mut devices = Audio::find_neovi_mic2_audio()?;
         println!("{devices:#?}");
-        for device in devices.borrow_mut() {
-            *device.start(44_100);
+        for device in &mut devices {
+            device.start(44_100)?;
         }
+
+        std::thread::sleep(std::time::Duration::from_secs_f64(3.0));
+
+        for (i, device) in devices.iter_mut().enumerate() {
+            device.stop()?;
+            device.save_to_file(format!("save_dev{i}.wav").to_string())?;
+        }
+
         Ok(())
     }
     #[test]
