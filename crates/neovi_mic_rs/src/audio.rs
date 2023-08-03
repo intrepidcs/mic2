@@ -2,7 +2,7 @@ use crate::types::{Error, Result};
 use core::time;
 
 use regex::Regex;
-use sfml::{self, audio::{SoundBufferRecorder, Sound, SoundBuffer}};
+use sfml::{self, audio::{SoundBufferRecorder}};
 
 #[derive(Debug)]
 pub struct Audio {
