@@ -2,7 +2,7 @@ use crate::types::{Error, Result};
 use core::time;
 
 use regex::Regex;
-use sfml::{self, audio::SoundBufferRecorder};
+use sfml::{self, audio::{SoundBufferRecorder, Sound, SoundBuffer}};
 
 #[derive(Debug)]
 pub struct Audio {
@@ -16,9 +16,9 @@ pub struct Audio {
 
 impl Audio {
     pub fn find_neovi_mic2_audio() -> Result<Vec<Self>> {
-        // "Monitor of PCM2912A Audio Codec Analog Stereo"
-        // "Monitor of PCM2912A Audio Codec Analog Stereo #2"
-        let re = Regex::new(r"Monitor of PCM2912A Audio Codec").unwrap();
+        // "PCM2912A Audio Codec Analog Stereo"
+        // "PCM2912A Audio Codec Analog Stereo #2"
+        let re = Regex::new(r"^PCM2912A Audio Codec").unwrap();
         let re_index = Regex::new(r"\d+$").unwrap();
         let mut capture_devices = Vec::new();
 
@@ -27,6 +27,7 @@ impl Audio {
         }
         let devices = sfml::audio::capture::available_devices();
         for device in &*devices {
+            //println!("{}", device.to_str().unwrap());
             // Match our expected audio device
             if !re.is_match(device.to_str().unwrap()) {
                 continue;
@@ -38,7 +39,8 @@ impl Audio {
             };
             // Create the recorder
             let mut recorder = SoundBufferRecorder::new();
-            recorder.set_device(device.to_str().unwrap()).unwrap();
+            let name = device.to_str().unwrap();
+            recorder.set_device(name).unwrap();
             // Create the Audio device
             capture_devices.push(Self {
                 capture_name: device.to_string(),
@@ -100,17 +102,13 @@ mod test {
     fn test_find_neovi_mic2_capture() -> Result<()> {
         let mut devices = Audio::find_neovi_mic2_audio()?;
         println!("{devices:#?}");
-        for device in &mut devices {
-            device.start(44_100)?;
-        }
-
-        std::thread::sleep(std::time::Duration::from_secs_f64(3.0));
-
         for (i, device) in devices.iter_mut().enumerate() {
+            println!("Recording {}", device.capture_name);
+            device.start(44_100)?;
+            std::thread::sleep(std::time::Duration::from_secs_f64(3.0));
             device.stop()?;
-            device.save_to_file(format!("save_dev{i}.wav").to_string())?;
+            device.save_to_file(format!("save_dev{i}.ogg").to_string())?;
         }
-
         Ok(())
     }
     #[test]
