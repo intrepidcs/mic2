@@ -57,6 +57,7 @@ impl UsbDeviceInfo {
 pub struct NeoVIMIC {
     usb_hub: UsbDeviceInfo,
     usb_children: Vec<UsbDeviceInfo>,
+    index: u32,
 }
 
 pub fn find_neovi_mics() -> Result<Vec<NeoVIMIC>> {
@@ -74,7 +75,7 @@ pub fn find_neovi_mics() -> Result<Vec<NeoVIMIC>> {
 
     let mut devices = Vec::new();
     // Find all children attached to all the hubs
-    for usb_hub in usb_hubs {
+    for (i, usb_hub) in usb_hubs.iter().enumerate() {
         let mut usb_children = Vec::new();
         for device in rusb::devices().unwrap().iter() {
             let parent = device.get_parent();
@@ -82,7 +83,7 @@ pub fn find_neovi_mics() -> Result<Vec<NeoVIMIC>> {
                 continue;
             }
             let parent = UsbDeviceInfo::from_rusb_device(&parent.unwrap());
-            if parent == usb_hub {
+            if parent == *usb_hub {
                 let mut child: UsbDeviceInfo = UsbDeviceInfo::from_rusb_device(&device);
                 // Lets attempt to open the device and get the serial number
                 if child.device_type == UsbDeviceType::FT245R {
@@ -104,8 +105,9 @@ pub fn find_neovi_mics() -> Result<Vec<NeoVIMIC>> {
             }
         }
         devices.push(NeoVIMIC {
-            usb_hub,
+            usb_hub: usb_hub.clone(),
             usb_children,
+            index: i as u32,
         });
     }
     Ok(devices)
