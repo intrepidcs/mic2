@@ -1,37 +1,56 @@
 use super::types::{GstData, GsaData, GsvDataCollection, GllData, GgaData, VtgData, RmcData, Pubx00Data, Pubx03Data, Pubx04Data, NMEAError, NMEASentenceType, GpsDataFromNmeaString};
 use chrono::NaiveTime;
 
+/// Represents a GPS NMEA Sentence
 #[derive(Debug, Clone)]
+#[repr(transparent)]
 pub struct NMEASentence {
-    pub raw_data: String,
+    pub inner: String,
 }
 
 impl NMEASentence {
+    /// Creates a new [NMEASentence] from a string
+    /// 
+    /// Example:
+    /// ```
+    /// use neovi_mic_rs::nmea::sentence::NMEASentence;
+    /// use neovi_mic_rs::nmea::types::NMEASentenceType;
+    /// 
+    /// let sentence =
+    /// NMEASentence::new("$GPGST,182141.000,15.5,15.3,7.2,21.8,0.9,0.5,0.8*54").unwrap();
+    /// let data = sentence.data().unwrap();
+    /// println!("{data:#?}");
+    /// match data {
+    ///     NMEASentenceType::GST(d) => assert_eq!(d.semi_major_orientation, Some(21.8)),
+    ///     _ => panic!("NMEA sentence wasn't GST..."),
+    /// }
+    /// ```
     pub fn new(raw_data: impl Into<String>) -> Result<Self, NMEAError> {
         Ok(Self {
-            raw_data: raw_data.into(),
+            inner: raw_data.into(),
         })
     }
 
+    /// Returns the NMEASentenceType for parsing, NMEAError on error.
     pub fn data(&self) -> Result<NMEASentenceType, NMEAError> {
         // Split the raw data into a vec
         let items: Vec<&str> = self
-            .raw_data
+            .inner
             .split(',')
             .map(|v| v.split('*').nth(0).unwrap_or(v)) // strip * from the end
             .collect();
         let result = match &items[0][3..] {
-            "GST" => Ok(NMEASentenceType::GST(GstData::from_nmea_str(&self.raw_data)?)),
-            "GSA" => Ok(NMEASentenceType::GSA(GsaData::from_nmea_str(&self.raw_data)?)),
-            "GSV" => Ok(NMEASentenceType::GSV(GsvDataCollection::from_nmea_str(&self.raw_data)?)),
-            // "GLL" => Ok(NMEASentenceType::GLL(GllData::from_nmea_str(&self.raw_data)?)),
-            // "GGA" => Ok(NMEASentenceType::GGA(GgaData::from_nmea_str(&self.raw_data)?)),
-            // "VTG" => Ok(NMEASentenceType::VTG(VtgData::from_nmea_str(&self.raw_data)?)),
-            // "RMC" => Ok(NMEASentenceType::RMC(RmcData::from_nmea_str(&self.raw_data)?)),
-            // "PUBX00" => Ok(NMEASentenceType::PUBX00(Pubx00Data::from_nmea_str(&self.raw_data)?)),
-            // "PUBX03" => Ok(NMEASentenceType::PUBX03(Pubx03Data::from_nmea_str(&self.raw_data)?)),
-            // "PUBX04" => Ok(NMEASentenceType::PUBX04(Pubx04Data::from_nmea_str(&self.raw_data)?)),
-            _ => Err(NMEAError::InvalidData(self.raw_data.to_owned())),
+            "GST" => Ok(NMEASentenceType::GST(GstData::from_nmea_str(&self.inner)?)),
+            "GSA" => Ok(NMEASentenceType::GSA(GsaData::from_nmea_str(&self.inner)?)),
+            "GSV" => Ok(NMEASentenceType::GSV(GsvDataCollection::from_nmea_str(&self.inner)?)),
+            // "GLL" => Ok(NMEASentenceType::GLL(GllData::from_nmea_str(&self.inner)?)),
+            // "GGA" => Ok(NMEASentenceType::GGA(GgaData::from_nmea_str(&self.inner)?)),
+            // "VTG" => Ok(NMEASentenceType::VTG(VtgData::from_nmea_str(&self.inner)?)),
+            // "RMC" => Ok(NMEASentenceType::RMC(RmcData::from_nmea_str(&self.inner)?)),
+            // "PUBX00" => Ok(NMEASentenceType::PUBX00(Pubx00Data::from_nmea_str(&self.inner)?)),
+            // "PUBX03" => Ok(NMEASentenceType::PUBX03(Pubx03Data::from_nmea_str(&self.inner)?)),
+            // "PUBX04" => Ok(NMEASentenceType::PUBX04(Pubx04Data::from_nmea_str(&self.inner)?)),
+            _ => Err(NMEAError::InvalidData(self.inner.to_owned())),
         };
         result
     }

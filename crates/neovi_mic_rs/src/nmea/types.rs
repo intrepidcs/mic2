@@ -1,12 +1,13 @@
+///! NMEA data types
 // https://gpsd.gitlab.io/gpsd/NMEA.html
 
 use chrono::NaiveTime;
 use std::{
-    borrow::Cow,
     fmt,
     num::{ParseFloatError, ParseIntError},
 };
 
+/// NMEA sentences include a "talker ID" a two-character prefix that identifies the type of the transmitting unit. By far the most common talker ID is "GP", identifying a generic GPS
 #[derive(Debug, Clone)]
 pub enum NMEATalkerID {
     /// BeiDou (China) - $BD
@@ -37,12 +38,12 @@ impl fmt::Display for NMEATalkerID {
             Self::Gps => write!(f, "GP"),
             Self::Navic => write!(f, "GI"),
             Self::Qzss => write!(f, "GQ"),
-            Self::Gps => write!(f, "GP"),
             Self::Unknown(s) => write!(f, "{}", s),
         }
     }
 }
 
+/// Used with [FAAMode]
 #[derive(Clone, Debug, PartialEq)]
 pub enum FAAModeType {
     Autonomous,
@@ -224,6 +225,7 @@ impl FAAMode {
     }
 }
 
+/// Used with [GgaData]
 #[derive(Clone, Debug, PartialEq)]
 pub enum GgaQualityIndicator {
     FixNotAvailable = 0,
@@ -237,6 +239,7 @@ pub enum GgaQualityIndicator {
     SimulationMode = 8,
 }
 
+/// GPS Degrees Minutes Seconds
 #[derive(Clone, Debug, PartialEq)]
 pub struct GpsDMS {
     pub degrees: u8,
@@ -245,6 +248,7 @@ pub struct GpsDMS {
 }
 
 impl GpsDMS {
+    /// Creates a new [GpsDMS] from a string
     pub fn from_str(value: impl Into<&'static str>) -> Result<Self, NMEAError> {
         let dd_mm: &str = value.into();
         // Check the length is at least 6 DDMM.MM
@@ -272,6 +276,7 @@ pub trait GpsDataFromNmeaString {
     fn from_nmea_str(data: impl Into<String>) -> Result<Self::Output, NMEAError>;
 }
 
+/// GPS Pseudorange Noise Statistics
 #[derive(Clone, Debug, PartialEq)]
 pub struct GstData {
     /// UTC of position fix (GGA)
@@ -336,6 +341,7 @@ impl GpsDataFromNmeaString for GstData {
     }
 }
 
+/// Used with [GsaData]
 #[derive(Debug, Clone, PartialEq)]
 pub enum GsaSelectionMode {
     /// Manual mode, forced to operate in 2D or 3D
@@ -346,6 +352,7 @@ pub enum GsaSelectionMode {
     Unknown(String),
 }
 
+/// Used with [GsaData]
 #[derive(Debug, Clone, PartialEq)]
 pub enum GsaMode {
     /// 1 = no fix
@@ -373,10 +380,14 @@ pub enum SystemID {
     Unknown(String),
 }
 
+/// GPS DOP and active satellites
 #[derive(Clone, Debug, PartialEq)]
 pub struct GsaData {
+    /// Selection mode: M=Manual, forced to operate in 2D or 3D, A=Automatic, 2D/3D
     pub selection_mode: GsaSelectionMode,
+    /// Mode (1 = no fix, 2 = 2D fix, 3 = 3D fix)
     pub mode: GsaMode,
+    /// ID of the satellite, 1st satellite is index 0, 2nd satellite is index 1 and so on ...
     pub prn_numbers: Vec<Option<u8>>,
     pub pdop: Option<f64>,
     pub hdop: Option<f64>,
@@ -444,7 +455,7 @@ impl GpsDataFromNmeaString for GsaData {
     }
 }
 
-/// These sentences describe the sky position of a UPS satellite in view. Typically they’re shipped in a group of 2 or 3.
+/// Describes the sky position of a UPS satellite in view. Typically they’re shipped in a group of 2 or 3.
 /// 
 /// Note: Some GPS receivers may emit more than 12 quadruples (more than three GPGSV sentences), even though 
 /// NMEA-0813 doesn’t allow this. (The extras might be WAAS satellites, for example.) Receivers may also
@@ -525,9 +536,10 @@ impl GpsDataFromNmeaString for GsvData {
     }
 }
 
+/// These sentences describe the sky position of a UPS satellite in view. Typically they’re shipped in a group of 2 or 3.
 #[repr(transparent)]
 #[derive(Clone, Debug, PartialEq)]
-pub struct GsvDataCollection { inner: Vec<GsvData> }
+pub struct GsvDataCollection { pub inner: Vec<GsvData> }
 
 impl GpsDataFromNmeaString for GsvDataCollection {
     type Output = Self;
