@@ -266,6 +266,12 @@ impl GpsDMS {
     }
 }
 
+pub trait GpsDataFromNmeaString {
+    type Output;
+    /// Creates a GPS Data struct from a standard nmea string
+    fn from_nmea_str(data: impl Into<String>) -> Result<Self::Output, NMEAError>;
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct GstData {
     /// UTC of position fix (GGA)
@@ -286,22 +292,259 @@ pub struct GstData {
     pub altitude_error: Option<f32>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
-pub struct GsaData {
-    pub mode1_automatic: Option<bool>,
-    // TODO: pub mode2_3d
-    pub prn_numbers: Vec<u8>,
-    pub pdop: Option<f64>,
-    pub hdop: Option<f64>,
-    pub vdop: Option<f64>,
+fn nmea_str_to_vec<'a, 'b: 'a>(data: impl Into<&'b String>) -> Vec<&'a str> {
+    let items: Vec<&str> = data
+        .into()
+        .split(',')
+        .map(|v| v.split('*').nth(0).unwrap_or(v)) // strip * from the end
+        .collect();
+    items
+}
+
+impl GpsDataFromNmeaString for GstData {
+    type Output = Self;
+
+    fn from_nmea_str(data: impl Into<String>) -> Result<Self::Output, NMEAError> {
+        // All fields including the checksum
+        const FIELD_COUNT: usize = 9;
+        let data: String = data.into();
+        let items = nmea_str_to_vec(&data);
+        let result = match &items[0][3..] {
+            "GST" => {
+                if items.len() != FIELD_COUNT {
+                    Err(NMEAError::InvalidData(
+                        "GST sentence is not 9 fields in length".to_string(),
+                    ))
+                } else {
+                    Ok(GstData {
+                        fix_timestamp: NaiveTime::parse_from_str(&items[1], "%H%M%S.3f").ok(),
+                        rms_dev: items[2].parse::<f32>().ok(),
+                        semi_major_dev: items[3].parse::<f32>().ok(),
+                        semi_minor_dev: items[4].parse::<f32>().ok(),
+                        semi_major_orientation: items[5].parse::<f32>().ok(),
+                        latitude_error: items[6].parse::<f32>().ok(),
+                        longitude_error: items[7].parse::<f32>().ok(),
+                        altitude_error: items[8].parse::<f32>().ok(),
+                    })
+                }
+            }
+            _ => Err(NMEAError::InvalidData(
+                format!("GST raw value {} is invalid", &items[0][3..]).to_string(),
+            )),
+        }?;
+        Ok(result)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum GsaSelectionMode {
+    /// Manual mode, forced to operate in 2D or 3D
+    Manual,
+    /// Automatic, 2D/3D
+    Automatic,
+    /// Unknown selection mode
+    Unknown(String),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum GsaMode {
+    /// 1 = no fix
+    ModeNone,
+    /// 2 = 2D fix
+    Mode2D,
+    /// 3 = 3D fix
+    Mode3D,
+    /// Unknown mode
+    Unknown(String),
+}
+
+/// Note: NMEA 4.1+ systems (u-blox 9, Quectel LCD79) may emit an extra field, System ID, just before the checksum.
+#[derive(Debug, Clone, PartialEq)]
+pub enum SystemID {
+    /// 1 = GPS L1C/A, L2CL, L2CM
+    GPS,
+    /// 2 = GLONASS L1 OF, L2 OF
+    GLONASS,
+    /// 3 = Galileo E1C, E1B, E5 bl, E5 bQ
+    Galileo,
+    /// 4 = BeiDou B1I D1, B1I D2, B2I D1, B2I D12
+    BeiDou,
+    /// Unknown System ID
+    Unknown(String),
 }
 
 #[derive(Clone, Debug, PartialEq)]
+pub struct GsaData {
+    pub selection_mode: GsaSelectionMode,
+    pub mode: GsaMode,
+    pub prn_numbers: Vec<Option<u8>>,
+    pub pdop: Option<f64>,
+    pub hdop: Option<f64>,
+    pub vdop: Option<f64>,
+    ///  Signal ID (NMEA 4.11)
+    pub system_id: Option<SystemID>,
+}
+
+impl GpsDataFromNmeaString for GsaData {
+    type Output = Self;
+
+    fn from_nmea_str(data: impl Into<String>) -> Result<Self::Output, NMEAError> {
+        // All fields including the checksum
+        const FIELD_COUNT: usize = 18;
+        let data: String = data.into();
+        let items = nmea_str_to_vec(&data);
+        // Note: NMEA 4.1+ systems (u-blox 9, Quectel LCD79) may emit an extra field, System ID, just before the checksum.
+        // Example: $GNGSA,A,3,80,71,73,79,69,,,,,,,,1.83,1.09,1.47*17
+        let result = match &items[0][3..] {
+            "GSA" => {
+                if items.len() < FIELD_COUNT {
+                    Err(NMEAError::InvalidData(
+                        format!("GSA sentence is not {FIELD_COUNT} fields in length").to_string(),
+                    ))
+                } else {
+                    let selection_mode = match items[1] {
+                        "M" => GsaSelectionMode::Manual,
+                        "A" => GsaSelectionMode::Automatic,
+                        _ => GsaSelectionMode::Unknown(items[1].to_string()),
+                    };
+                    let mode = match items[2].parse::<u32>().ok() {
+                        Some(0u32) => GsaMode::ModeNone,
+                        Some(1u32) => GsaMode::Mode2D,
+                        Some(2u32) => GsaMode::Mode3D,
+                        _ => GsaMode::Unknown(items[2].to_string()),
+                    };
+                    Ok(GsaData {
+                        selection_mode: selection_mode,
+                        mode: mode,
+                        prn_numbers: items[3..=14].iter().map(|v| v.parse::<u8>().ok()).collect(),
+                        pdop: items[15].parse::<f64>().ok(),
+                        hdop: items[16].parse::<f64>().ok(),
+                        vdop: items[17].parse::<f64>().ok(),
+                        system_id: {
+                            if items.len() > FIELD_COUNT {
+                                match items[18].parse::<u32>().ok() {
+                                    Some(1u32) => Some(SystemID::GPS),
+                                    Some(2u32) => Some(SystemID::GLONASS),
+                                    Some(3u32) => Some(SystemID::Galileo),
+                                    Some(4u32) => Some(SystemID::BeiDou),
+                                    _ => Some(SystemID::Unknown(items[18].to_string())),
+                                }
+                            } else {
+                                None
+                            }
+                        }
+                    })
+                }
+            }
+            _ => Err(NMEAError::InvalidData(
+                format!("GSA raw value {} is invalid", &items[0][3..]).to_string(),
+            )),
+        }?;
+        Ok(result)
+    }
+}
+
+/// These sentences describe the sky position of a UPS satellite in view. Typically they’re shipped in a group of 2 or 3.
+/// 
+/// Note: Some GPS receivers may emit more than 12 quadruples (more than three GPGSV sentences), even though 
+/// NMEA-0813 doesn’t allow this. (The extras might be WAAS satellites, for example.) Receivers may also
+/// report quads for satellites they aren’t tracking, in which case the SNR field will be null; we don’t
+/// know whether this is formally allowed or not.
+/// 
+/// Note: NMEA 4.10+ systems (u-blox 9, Quectel LCD79) may emit an extra field, Signal ID, just before the 
+/// checksum. See the description of Signal ID’s above.
+/// 
+/// Note: $GNGSV uses PRN in field 4. Other $GxGSV use the satellite ID in field 4. Jackson Labs, Quectel, 
+/// Telit, and others get this wrong, in various conflicting ways.
+/// 
+#[derive(Clone, Debug, PartialEq)]
 pub struct GsvData {
-    pub prn_number: u8,
-    pub elevation: Option<f32>,
-    pub azimuth: Option<f32>,
-    pub snr: Option<f32>,
+    /// total number of GSV sentences to be transmitted in this group
+    pub total_count: Option<u16>,
+    /// Sentence number, 1-9 of this GSV message within current group
+    pub count: Option<u16>,
+    /// total number of satellites in view (leading zeros sent)
+    pub sat_in_view: Option<u16>,
+    /// satellite ID or PRN number (leading zeros sent)
+    pub id_or_prn_number: Option<u16>,
+    /// elevation in degrees (-90 to 90) (leading zeros sent)
+    pub elevation: Option<i16>,
+    /// azimuth in degrees to true north (000 to 359) (leading zeros sent)
+    pub azimuth: Option<u16>,
+    /// SNR in dB (00-99) (leading zeros sent) more satellite info quadruples
+    pub snr: Option<u16>,
+    ///  Signal ID (NMEA 4.11)
+    pub system_id: Option<SystemID>,
+}
+
+impl GpsDataFromNmeaString for GsvData {
+    type Output = Self;
+
+    fn from_nmea_str(data: impl Into<String>) -> Result<Self::Output, NMEAError> {
+        // All fields including the checksum
+        const FIELD_COUNT: usize = 8;
+        let data: String = data.into();
+        // Example: $GPGSV,3,1,11,03,03,111,00,04,15,270,00,06,01,010,00,13,06,292,00*74
+        let items = nmea_str_to_vec(&data);
+        // Note: NMEA 4.1+ systems (u-blox 9, Quectel LCD79) may emit an extra field, System ID, just before the checksum.
+        let result = match &items[0][3..] {
+            "GSV" => {
+                if items.len() < FIELD_COUNT {
+                    Err(NMEAError::InvalidData(
+                        format!("GSV sentence is not {FIELD_COUNT} fields in length").to_string(),
+                    ))
+                } else {
+                    Ok(GsvData {
+                    total_count: items[1].parse::<u16>().ok(),
+                    count: items[2].parse::<u16>().ok(),
+                    sat_in_view: items[3].parse::<u16>().ok(),
+                    id_or_prn_number: items[4].parse::<u16>().ok(),
+                    elevation: items[5].parse::<i16>().ok(),
+                    azimuth: items[6].parse::<u16>().ok(),
+                    snr: items[7].parse::<u16>().ok(),
+                    system_id: {
+                        if items.len() > FIELD_COUNT {
+                            match items[8].parse::<u32>().ok() {
+                                Some(1u32) => Some(SystemID::GPS),
+                                Some(2u32) => Some(SystemID::GLONASS),
+                                Some(3u32) => Some(SystemID::Galileo),
+                                Some(4u32) => Some(SystemID::BeiDou),
+                                _ => Some(SystemID::Unknown(items[18].to_string())),
+                            }
+                        } else {
+                            None
+                        }
+                    }})
+                }
+            }
+            _ => Err(NMEAError::InvalidData(
+                format!("GSA raw value {} is invalid", &items[0][3..]).to_string(),
+            )),
+        }?;
+        Ok(result)
+    }
+}
+
+#[repr(transparent)]
+#[derive(Clone, Debug, PartialEq)]
+pub struct GsvDataCollection { inner: Vec<GsvData> }
+
+impl GpsDataFromNmeaString for GsvDataCollection {
+    type Output = Self;
+
+    fn from_nmea_str(data: impl Into<String>) -> Result<Self::Output, NMEAError> {
+        // All fields including the checksum
+        const FIELD_COUNT: usize = 8;
+        let data: String = data.into();
+        let mut gsv_items = Vec::new();
+        // GSV messages have a lot of individual $GxGSV messages seperated by a space
+        // Example: $GPGSV,3,1,11,03,03,111,00,04,15,270,00,06,01,010,00,13,06,292,00*74 $GPGSV,3,2,11,14,25,170,00,16,57,208,39,18,67,296,40,19,40,246,00*74 $GPGSV,3,3,11,22,42,067,42,24,14,311,43,27,05,244,00,,,,*4D
+        for gsv_data in data.split(" ").collect::<Vec<&str>>() {
+            let gsv = GsvData::from_nmea_str(gsv_data)?;
+            gsv_items.push(gsv);
+        }
+        Ok(GsvDataCollection { inner: gsv_items })
+    }
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -375,7 +618,7 @@ pub enum NMEASentenceType {
     /// GPS DOP and active satellites
     GSA(GsaData),
     /// Satellites in view
-    GSV(GsvData),
+    GSV(GsvDataCollection),
     /// Geographic Position - Latitude/Longitude
     GLL(GllData),
     /// Global Positioning System Fix Data
