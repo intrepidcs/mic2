@@ -240,27 +240,62 @@ pub enum GgaQualityIndicator {
 }
 
 /// GPS Degrees Minutes Seconds
+/// 
+/// This object is dumb, it doesn't have any awareness of North/South or East/West or Negative numbers.
 #[derive(Clone, Debug, PartialEq)]
 pub struct GpsDMS {
-    pub degrees: u8,
+    pub degrees: u16,
     pub minutes: u8,
     pub seconds: u8,
 }
 
+/// Round a f64 to p decimal places
+fn round_f64(f: f64, p: i32, round_up: bool) -> f64 {
+    let multiplier = 10.0_f64;
+    let multiplier = multiplier.powi(p);
+    // round up
+    let mut f = f;
+    if f != 0.0 && round_up {
+        f = f + (5.0 / multiplier);
+    }
+    let result = (f * multiplier).round() / multiplier;
+    result
+}
+
 impl GpsDMS {
-    /// Creates a new [GpsDMS] from a string
-    pub fn from_str(value: impl Into<&'static str>) -> Result<Self, NMEAError> {
-        let dd_mm: &str = value.into();
+
+    pub fn new(degrees: u16, minutes: u8, seconds: u8) -> Self {
+        Self {
+            degrees, minutes, seconds
+        }
+    }
+    /// Creates a new [GpsDMS] from a string directly from NMEA sentences
+    /// Example: ddmm.mm
+    /// 4404.14036
+    /// ```
+    /// use neovi_mic_rs::nmea::types::GpsDMS;
+    /// 
+    /// let dms = GpsDMS::from_nmea_str("3888.97").unwrap();
+    /// println!("{dms:#?} {}", dms.to_decimal());
+    /// assert!((dms.to_decimal() - 38.8897).abs() < f64::EPSILON, "{} is not approximately equal to {}", dms.to_decimal(), 38.8897);
+    /// ```
+    pub fn from_nmea_str(value: impl Into<String>) -> Result<Self, NMEAError> {
+        let dd_mm: &str = &value.into();
         // Check the length is at least 6 DDMM.MM
         if dd_mm.len() < 7 || !dd_mm.contains(".") {
             return Err(NMEAError::InvalidData(
                 format!("Couldn't convert value {} into a valid GPS DMS", &dd_mm).into(),
             ));
         }
-        // DDMM.MM
-        let degrees = dd_mm[..2].parse::<u8>()?;
-        let minutes: u8 = dd_mm[2..4].parse::<u8>()?;
-        let seconds: u8 = dd_mm[5..7].parse::<u8>()?;
+        let values: Vec<&str> = dd_mm.split(".").collect();
+        if values.len() < 2 {
+            return Err(NMEAError::InvalidData(
+                format!("Couldn't convert value {} into a valid GPS DMS", &dd_mm).into(),
+            ));
+        }
+        let seconds: u8 = (values[1].parse::<f64>()?/100.0*60.0) as u8;
+        let minutes: u8 = values[0][values[0].len()-2..].parse::<u8>()?;
+        let degrees: u16 = values[0][..values[0].len()-2].parse::<u16>()?;
 
         Ok(Self {
             degrees,
@@ -268,6 +303,55 @@ impl GpsDMS {
             seconds,
         })
     }
+
+    /// Create a new [GpsDMS] from a decimal degree
+    /// 
+    /// Example:
+    /// ```
+    /// use neovi_mic_rs::nmea::types::GpsDMS;
+    /// 
+    /// let dms = GpsDMS::from_decimal(38.8897_f64);
+    /// println!("{dms:#?} {}", dms.to_decimal());
+    /// assert!((dms.to_decimal() - 38.8897).abs() < 1.0e-4, "{} is not approximately equal to {}", dms.to_decimal(), 38.8897);
+    /// ```
+    pub fn from_decimal(decimal_degrees: f64) -> Self {
+        let degrees = decimal_degrees as u16;
+        let mut minutes_f64 = (decimal_degrees - degrees as f64) * 60.0;
+        minutes_f64 = round_f64(minutes_f64, 6, true);
+        let minutes = minutes_f64 as u8;
+        let seconds = ((minutes_f64 - minutes as f64) * 60.0) as u8;
+
+        Self {
+            degrees,
+            minutes,
+            seconds, 
+        }
+    }
+
+    /// Converts DMS to Decimal degrees
+    /// 
+    /// Example:
+    /// ```
+    /// use neovi_mic_rs::nmea::types::GpsDMS;
+    /// 
+    /// let latitude_dms = GpsDMS { degrees: 38, minutes: 53, seconds: 23 };
+    /// let latitude_decimal = latitude_dms.to_decimal();
+    /// assert!((latitude_decimal - 38.5323).abs() < 1.0e-4, "{} is not approximately equal to {}", latitude_decimal, 38.5323);
+    /// 
+    /// let longitude_dms = GpsDMS { degrees: 77, minutes: 00, seconds: 32 };
+    /// let longitude_decimal = longitude_dms.to_decimal();
+    /// assert!((longitude_decimal - 77.0032).abs() < 1.0e-4, "{} is not approximately equal to {}", longitude_decimal, 77.0032);
+    /// ```
+    pub fn to_decimal(&self, p: i32) -> f64 {
+        // There is probably a better way to do this since floating points suck but this "works"
+        let mut degrees: f64 = self.degrees.into();
+        let mut minutes = self.minutes as f64 + (self.seconds as f64 / 60.0);
+        //minutes = (minutes * 1000000.0).round() / 1000000.0;
+        degrees +=  minutes / 60.0;
+        degrees = round_f64(degrees, p, false);
+        degrees
+    }
+
 }
 
 pub trait GpsDataFromNmeaString {
@@ -559,14 +643,82 @@ impl GpsDataFromNmeaString for GsvDataCollection {
     }
 }
 
+/// Geographic Position - Latitude/Longitude
+/// 
+/// Example: $GNGLL,4404.14012,N,12118.85993,W,001037.00,A,A*67
 #[derive(Clone, Debug, PartialEq)]
 pub struct GllData {
-    pub latitude: Option<f64>,
-    pub longitude: Option<f64>,
+    /// Latitude. See [GpsDMS] for more details
+    pub latitude: Option<GpsDMS>,
+    /// Longitude. See [GpsDMS] for more details
+    pub longitude: Option<GpsDMS>,
+    /// UTC of this position.
     pub timestamp: Option<NaiveTime>,
+    /// Status (A = Valid, V = Invalid). Is true when valid.
     pub data_valid: Option<bool>,
+    /// FAA mode indicator (NMEA 2.3 and later. See [FAAMode] for more details.
     pub faa_mode: Option<FAAMode>,
 }
+
+/*
+impl GpsDataFromNmeaString for GllData {
+    type Output = Self;
+
+    fn from_nmea_str(data: impl Into<String>) -> Result<Self::Output, NMEAError> {
+        // All fields including the checksum. NMEA 2.3 and later have 8 fields for FAA mode
+        const FIELD_COUNT: usize = 7;
+        let data: String = data.into();
+        // Example: $GNGLL,4404.14012,N,12118.85993,W,001037.00,A,A*67
+        let items = nmea_str_to_vec(&data);
+        // Note: NMEA 2.3+ systems may emit an extra field, FAA mode, just before the checksum.
+        let result = match &items[0][3..] {
+            "GLL" => {
+                if items.len() < FIELD_COUNT {
+                    Err(NMEAError::InvalidData(
+                        format!("GLL sentence is not {FIELD_COUNT} fields in length").to_string(),
+                    ))
+                } else {
+                    let latitude = match GpsDMS::from_str(items[1]) {
+                        Ok(dms) => {
+                            match &items[2] {
+                                "N" => dms *= 1,
+                                "S" => dms *= -1,
+                            } else {
+
+                            }
+                        }
+                    };
+                    Ok(GllData {
+                    latitude:
+                    count: items[2].parse::<u16>().ok(),
+                    sat_in_view: items[3].parse::<u16>().ok(),
+                    id_or_prn_number: items[4].parse::<u16>().ok(),
+                    elevation: items[5].parse::<i16>().ok(),
+                    azimuth: items[6].parse::<u16>().ok(),
+                    snr: items[7].parse::<u16>().ok(),
+                    system_id: {
+                        if items.len() > FIELD_COUNT {
+                            match items[8].parse::<u32>().ok() {
+                                Some(1u32) => Some(SystemID::GPS),
+                                Some(2u32) => Some(SystemID::GLONASS),
+                                Some(3u32) => Some(SystemID::Galileo),
+                                Some(4u32) => Some(SystemID::BeiDou),
+                                _ => Some(SystemID::Unknown(items[18].to_string())),
+                            }
+                        } else {
+                            None
+                        }
+                    }})
+                }
+            }
+            _ => Err(NMEAError::InvalidData(
+                format!("GSA raw value {} is invalid", &items[0][3..]).to_string(),
+            )),
+        }?;
+        Ok(result)
+    }
+}
+*/
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct GgaData {
@@ -664,5 +816,66 @@ impl fmt::Display for NMEASentenceType {
             Self::PUBX04(_) => write!(f, "PUBX04"),
             Self::Unsupported(s) => write!(f, "{}", s),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::HashMap;
+
+    use super::*;
+
+    #[test]
+    fn test_gps_dms() {
+        let degree_map: HashMap<&str, GpsDMS> = HashMap::from([
+            ("0.0", GpsDMS::new(0, 0, 0)),
+            ("0.005", GpsDMS::new(0, 0, 18)),
+            ("0.01", GpsDMS::new(0, 0, 36)),
+            ("1.23", GpsDMS::new(1, 13, 48)),
+            ("1.25", GpsDMS::new(1, 15, 0)),
+            ("12.53", GpsDMS::new(12, 31, 48)),
+            ("47.31", GpsDMS::new(47, 18, 36)),
+            ("90.99", GpsDMS::new(90, 59, 24)),
+            ("90.995", GpsDMS::new(90, 59, 42)),
+        ]);
+        for (degree, dms) in &degree_map {
+            let degree = degree.parse::<f64>().unwrap();
+            let new_dms = GpsDMS::from_decimal(degree);
+            assert_eq!(new_dms.degrees, dms.degrees);
+            assert_eq!(new_dms.minutes, dms.minutes);
+            assert_eq!(new_dms.seconds, dms.seconds);
+            let abs = (new_dms.to_decimal(3) - degree).abs();
+            assert!(abs < f64::EPSILON, "{} is not approximately equal to {} ({} -- {})", new_dms.to_decimal(3), degree, abs, f64::EPSILON);
+        }
+
+
+        let nmea_str_map: HashMap<&str, GpsDMS> = HashMap::from([
+            ("0000.00", GpsDMS::new(0, 0, 0)),
+            ("0000.30", GpsDMS::new(0, 0, 18)),
+            ("0000.60", GpsDMS::new(0, 0, 36)),
+            ("0113.80", GpsDMS::new(1, 13, 48)),
+            ("0115.00", GpsDMS::new(1, 15, 0)),
+            ("1231.80", GpsDMS::new(12, 31, 48)),
+            ("4718.60", GpsDMS::new(47, 18, 36)),
+            ("9059.40", GpsDMS::new(90, 59, 24)),
+            ("9099.70", GpsDMS::new(90, 99, 42)),
+            ("18099.70", GpsDMS::new(180, 99, 42)),
+        ]);
+        for (nmea_str, dms) in &nmea_str_map {
+            let new_dms = GpsDMS::from_nmea_str(nmea_str.to_string()).unwrap();
+            let degree = new_dms.to_decimal(3);
+            assert_eq!(new_dms.degrees, dms.degrees);
+            assert_eq!(new_dms.minutes, dms.minutes);
+            assert_eq!(new_dms.seconds, dms.seconds);
+            let abs = (new_dms.to_decimal(3) - degree).abs();
+            assert!(abs < f64::EPSILON, "{} is not approximately equal to {} ({} -- {})", new_dms.to_decimal(3), degree, abs, f64::EPSILON);
+        }
+
+        /*
+        println!("{dms:#?} {}", dms.to_decimal());
+        let dms = GpsDMS::from_nmea_str("38.8897").unwrap();
+        println!("{dms:#?} {}", dms.to_decimal());
+        assert!((dms.to_decimal() - 38.8897).abs() < f64::EPSILON, "{} is not approximately equal to {}", dms.to_decimal(), 38.8897);
+        */
     }
 }
