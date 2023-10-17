@@ -67,12 +67,13 @@ impl NeoVIMIC {
 }
 
 impl NeoVIMIC {
+    /* TODO
     fn new() -> Self {
         Self {
             0: Arc::new(Mutex::new(mic::NeoVIMIC { ..Default::default() })),
         }
     }
-
+     */
     pub fn from(neovi_mic: mic::NeoVIMIC) -> Self {
         Self {
             0: Arc::new(Mutex::new(neovi_mic)),
