@@ -112,7 +112,7 @@ impl UsbDeviceInfo {
 
     fn __repr__(&self) -> String {
         let description = self.__str__();
-        format!("<NeoVI MIC2 {description}").to_string()
+        format!("<NeoDevice {description}").to_string()
     }
 
     #[getter]
