@@ -1,8 +1,8 @@
 use std::sync::{Arc, Mutex};
 
-use pyo3::prelude::*;
-use neovi_mic_rs::mic;
 use neovi_mic_rs::io;
+use neovi_mic_rs::mic;
+use pyo3::prelude::*;
 
 macro_rules! define_basic_py_object {
     ($name:ident, $inner_name:ty) => {
@@ -65,11 +65,9 @@ impl NeoVIMIC {
     }
 
     fn get_ftdi_device(&self) -> PyResult<UsbDeviceInfo> {
-        Ok(
-            UsbDeviceInfo::from(
-                self.0.lock().unwrap().get_ftdi_device().unwrap()
-            )
-        )
+        Ok(UsbDeviceInfo::from(
+            self.0.lock().unwrap().get_ftdi_device().unwrap(),
+        ))
     }
 }
 
@@ -147,16 +145,17 @@ impl UsbDeviceInfo {
         }
     }
      */
-    pub fn from(usb_device_info: mic::UsbDeviceInfo) -> Self {
+    pub fn from(usb_device_info: &mic::UsbDeviceInfo) -> Self {
         Self {
-            0: Arc::new(Mutex::new(usb_device_info)),
+            0: Arc::new(Mutex::new(usb_device_info.to_owned())),
         }
     }
 }
 
-#[pyclass]
+#[pyclass(name = "IODeviceBitMode")]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-enum IODeviceBitMode {
+#[repr(u8)]
+enum PyIODeviceBitMode {
     None = 0x0,
     Buzzer = 0x1,
     Button = 0x2,
@@ -168,6 +167,34 @@ enum IODeviceBitMode {
     CBUS3Mask = 0x80,
 
     DefaultMask = 0x50,
+}
+
+impl TryFrom<io::IODeviceBitMode> for PyIODeviceBitMode {
+    type Error = &'static str;
+
+    fn try_from(value: io::IODeviceBitMode) -> Result<Self, Self::Error> {
+        let value = match value {
+            io::IODeviceBitMode::None => Ok(PyIODeviceBitMode::None),
+            io::IODeviceBitMode::Buzzer => Ok(PyIODeviceBitMode::Buzzer),
+            io::IODeviceBitMode::Button => Ok(PyIODeviceBitMode::Button),
+            io::IODeviceBitMode::GPSLed => Ok(PyIODeviceBitMode::GPSLed),
+            io::IODeviceBitMode::CBUS3 => Ok(PyIODeviceBitMode::CBUS3),
+            io::IODeviceBitMode::BuzzerMask => Ok(PyIODeviceBitMode::BuzzerMask),
+            io::IODeviceBitMode::ButtonMask => Ok(PyIODeviceBitMode::ButtonMask),
+            io::IODeviceBitMode::DefaultMask => Ok(PyIODeviceBitMode::DefaultMask),
+            _ => Err("Invalid IODeviceBitMode!"),
+        };
+        value
+    }
+}
+
+impl TryFrom<u8> for PyIODeviceBitMode {
+    type Error = &'static str;
+
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
+        let bit_mode = io::IODeviceBitMode::from_bits(value).unwrap();
+        bit_mode.try_into()
+    }
 }
 
 define_basic_py_object_no_new!(IODevice, io::IODevice);
@@ -221,8 +248,13 @@ impl IODevice {
         Ok(self.0.lock().unwrap().set_bitmode_raw(bitmask).unwrap())
     }
 
-    fn set_bitmode(&self, bitmask: IODeviceBitMode) -> PyResult<()> {
-        Ok(self.0.lock().unwrap().set_bitmode(bitmask).unwrap())
+    fn set_bitmode(&self, bitmask: PyIODeviceBitMode) -> PyResult<()> {
+        Ok(self
+            .0
+            .lock()
+            .unwrap()
+            .set_bitmode(io::IODeviceBitMode::from_bits(bitmask as u8).unwrap())
+            .unwrap())
     }
 
     /// Directly read pin state, circumventing the read buffer. Useful for bitbang mode.
@@ -236,13 +268,16 @@ impl IODevice {
         Ok(self.0.lock().unwrap().read_pins_raw().unwrap())
     }
 
-    fn read_pins(&self) -> PyResult<IODeviceBitMode> {
-        Ok(IODeviceBitMode::from(self.0.lock().unwrap().read_pins().unwrap()))
+    fn read_pins(&self) -> PyResult<PyIODeviceBitMode> {
+        Ok(
+            PyIODeviceBitMode::try_from(self.0.lock().unwrap().read_pins().unwrap().bits())
+                .unwrap(),
+        )
     }
 
     fn get_usb_device_info(&self) -> PyResult<UsbDeviceInfo> {
         Ok(UsbDeviceInfo::from(
-            self.0.lock().unwrap().get_usb_device_info()
+            self.0.lock().unwrap().get_usb_device_info(),
         ))
     }
 }
@@ -268,15 +303,45 @@ mod test {
 
     #[test]
     fn test_io_device_bit_mode() {
-        assert_eq!(IODeviceBitMode::None as u8, io::IODeviceBitMode::None.bits() as u8);
-        assert_eq!(IODeviceBitMode::Buzzer as u8, io::IODeviceBitMode::Buzzer.bits() as u8);
-        assert_eq!(IODeviceBitMode::Button as u8, io::IODeviceBitMode::Button.bits() as u8);
-        assert_eq!(IODeviceBitMode::GPSLed as u8, io::IODeviceBitMode::GPSLed.bits() as u8);
-        assert_eq!(IODeviceBitMode::CBUS3 as u8, io::IODeviceBitMode::CBUS3.bits() as u8);
-        assert_eq!(IODeviceBitMode::BuzzerMask as u8, io::IODeviceBitMode::BuzzerMask.bits() as u8);
-        assert_eq!(IODeviceBitMode::ButtonMask as u8, io::IODeviceBitMode::ButtonMask.bits() as u8);
-        assert_eq!(IODeviceBitMode::GPSLedMask as u8, io::IODeviceBitMode::GPSLedMask.bits() as u8);
-        assert_eq!(IODeviceBitMode::CBUS3Mask as u8, io::IODeviceBitMode::CBUS3Mask.bits() as u8);
-        assert_eq!(IODeviceBitMode::DefaultMask as u8, io::IODeviceBitMode::DefaultMask.bits() as u8);
+        assert_eq!(
+            PyIODeviceBitMode::None as u8,
+            io::IODeviceBitMode::None.bits() as u8
+        );
+        assert_eq!(
+            PyIODeviceBitMode::Buzzer as u8,
+            io::IODeviceBitMode::Buzzer.bits() as u8
+        );
+        assert_eq!(
+            PyIODeviceBitMode::Button as u8,
+            io::IODeviceBitMode::Button.bits() as u8
+        );
+        assert_eq!(
+            PyIODeviceBitMode::GPSLed as u8,
+            io::IODeviceBitMode::GPSLed.bits() as u8
+        );
+        assert_eq!(
+            PyIODeviceBitMode::CBUS3 as u8,
+            io::IODeviceBitMode::CBUS3.bits() as u8
+        );
+        assert_eq!(
+            PyIODeviceBitMode::BuzzerMask as u8,
+            io::IODeviceBitMode::BuzzerMask.bits() as u8
+        );
+        assert_eq!(
+            PyIODeviceBitMode::ButtonMask as u8,
+            io::IODeviceBitMode::ButtonMask.bits() as u8
+        );
+        assert_eq!(
+            PyIODeviceBitMode::GPSLedMask as u8,
+            io::IODeviceBitMode::GPSLedMask.bits() as u8
+        );
+        assert_eq!(
+            PyIODeviceBitMode::CBUS3Mask as u8,
+            io::IODeviceBitMode::CBUS3Mask.bits() as u8
+        );
+        assert_eq!(
+            PyIODeviceBitMode::DefaultMask as u8,
+            io::IODeviceBitMode::DefaultMask.bits() as u8
+        );
     }
 }

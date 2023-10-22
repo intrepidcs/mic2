@@ -1,3 +1,5 @@
+use std::default;
+
 use crate::{mic::UsbDeviceInfo, types::Result};
 use bitflags::bitflags;
 use libftdi1_sys::{
@@ -33,6 +35,16 @@ pub struct IODevice {
     usb_device_info: UsbDeviceInfo,
     context: *mut ftdi_context,
     is_open: bool,
+}
+
+impl Default for IODevice {
+    fn default() -> Self {
+        Self {
+            usb_device_info: UsbDeviceInfo::default(),
+            context: std::ptr::null_mut(),
+            is_open: false,
+        }
+    }
 }
 
 impl Drop for IODevice {

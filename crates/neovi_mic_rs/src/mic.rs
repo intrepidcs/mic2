@@ -139,10 +139,10 @@ impl NeoVIMIC {
     }
 
     /// Get the FTDI device inside the neoVI MIC. This is used with IODevice.
-    pub fn get_ftdi_device(&self) -> Result<UsbDeviceInfo> {
+    pub fn get_ftdi_device(&self) -> Result<&UsbDeviceInfo> {
         for device in &self.usb_children {
             if device.device_type == UsbDeviceType::FT245R {
-                return Ok(device.clone());
+                return Ok(device);
             }
         }
         Err(crate::types::Error::InvalidDevice("No valid FTDI devices found".into()))
