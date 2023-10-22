@@ -69,6 +69,12 @@ impl NeoVIMIC {
             self.0.lock().unwrap().get_ftdi_device().unwrap(),
         ))
     }
+
+    fn get_io_device(&self) -> PyResult<IODevice> {
+        Ok(IODevice::from(
+            self.0.lock().unwrap().get_io_device().unwrap(),
+        ))
+    }
 }
 
 impl NeoVIMIC {
@@ -155,7 +161,7 @@ impl UsbDeviceInfo {
 #[pyclass(name = "IODeviceBitMode")]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 #[repr(u8)]
-enum PyIODeviceBitMode {
+pub enum PyIODeviceBitMode {
     None = 0x0,
     Buzzer = 0x1,
     Button = 0x2,

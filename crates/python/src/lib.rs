@@ -19,6 +19,7 @@ fn neovi_mic(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<types::NeoVIMIC>()?;
     m.add_class::<types::UsbDeviceInfo>()?;
     m.add_class::<types::IODevice>()?;
+    m.add_class::<types::PyIODeviceBitMode>()?;
     m.add_function(wrap_pyfunction!(find, m)?)?;
     Ok(())
 }
