@@ -1,5 +1,10 @@
-use crate::types::Result;
+use crate::{types::Result, io::IODevice};
 use rusb::{self, GlobalContext};
+
+/// Intrepid Control Systems, Inc. USB Vendor ID.
+const NEOVI_MIC_VID: u16 = 0x93c;
+/// neoVI MIC2 Product ID, shared with ValueCAN3 PID.
+const NEOVI_MIC_PID: u16 = 0x601;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum UsbDeviceType {
@@ -133,6 +138,7 @@ impl NeoVIMIC {
         "".into()
     }
 
+    /// Get the FTDI device inside the neoVI MIC. This is used with IODevice.
     pub fn get_ftdi_device(&self) -> Result<UsbDeviceInfo> {
         for device in &self.usb_children {
             if device.device_type == UsbDeviceType::FT245R {
@@ -140,6 +146,13 @@ impl NeoVIMIC {
             }
         }
         Err(crate::types::Error::InvalidDevice("No valid FTDI devices found".into()))
+    }
+
+    /// Get the IODevice of the neoVI MIC. Control the buzzer, button, and GPS LED through
+    /// this.
+    pub fn get_io_device(&self) -> Result<IODevice> {
+        let ftdi_device = self.get_ftdi_device()?;
+        Ok(IODevice::from(&ftdi_device)?)
     }
 }
 
@@ -159,6 +172,32 @@ mod tests {
                 true => println!("with GPS"),
                 false => println!(""),
             }
+        }
+    }
+
+    #[test]
+    fn test_get_ftdi_device() {
+        let devices = find_neovi_mics().expect("Expected at least one neoVI MIC2!");
+        println!("{devices:#X?}");
+
+        println!("Found {} device(s)", devices.len());
+        for device in &devices {
+            let ftdi_device = device.get_ftdi_device().unwrap();
+            assert_eq!(ftdi_device.vendor_id, NEOVI_MIC_VID);
+            assert_eq!(ftdi_device.product_id, NEOVI_MIC_PID);
+        }
+    }
+
+    #[test]
+    fn test_get_io_device() {
+        let devices = find_neovi_mics().expect("Expected at least one neoVI MIC2!");
+        println!("{devices:#X?}");
+
+        println!("Found {} device(s)", devices.len());
+        for device in &devices {
+            let mut io_device = device.get_io_device().unwrap();
+            io_device.open().unwrap();
+            io_device.close().unwrap();
         }
     }
 }

@@ -55,14 +55,20 @@ impl NeoVIMIC {
         format!("<NeoDevice {description}").to_string()
     }
 
-    #[getter]
     fn get_serial_number(&self) -> PyResult<String> {
         Ok(self.0.lock().unwrap().get_serial_number())
     }
 
-    #[getter]
     fn has_gps(&self) -> PyResult<bool> {
         Ok(self.0.lock().unwrap().has_gps())
+    }
+
+    fn get_ftdi_device(&self) -> PyResult<UsbDeviceInfo> {
+        Ok(
+            UsbDeviceInfo::from(
+                self.0.lock().unwrap().get_ftdi_device().unwrap()
+            )
+        )
     }
 }
 
@@ -130,4 +136,19 @@ impl UsbDeviceInfo {
         Ok(self.0.lock().unwrap().device_type.into())
     }
     */
+}
+
+impl UsbDeviceInfo {
+    /* TODO
+    fn new() -> Self {
+        Self {
+            0: Arc::new(Mutex::new(mic::UsbDeviceInfo { ..Default::default() })),
+        }
+    }
+     */
+    pub fn from(usb_device_info: mic::UsbDeviceInfo) -> Self {
+        Self {
+            0: Arc::new(Mutex::new(usb_device_info)),
+        }
+    }
 }

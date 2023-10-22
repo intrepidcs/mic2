@@ -36,7 +36,7 @@ neoVI MIC2 needs permission to access the IO portion of the device.
 Copy [99-intrepidcs.rules](99-intrepidcs.rules) to `/etc/udev/rules.d`
 ```
 sudo cp 99-intrepidcs.rules /etc/udev/rules.d/
-sudo udevadm control --reload-rules && udevadm trigger
+sudo udevadm control --reload-rules && sudo udevadm trigger
 ```
 
 ### **Rust**
@@ -94,7 +94,7 @@ sudo udevadm control --reload-rules && udevadm trigger
 
 ##### Arch
 
-- ```sudo pacman -S sfml # TODO: libudev-dev```
+- ```sudo pacman -S sfml libftdi```
 
 ##### Windows
 
