@@ -56,6 +56,10 @@ impl IODevice {
         })
     }
 
+    pub fn is_open(&self) -> bool {
+        self.is_open
+    }
+
     pub fn open(&mut self) -> Result<()> {
         let result = unsafe {
             ftdi_usb_open_bus_addr(
@@ -166,6 +170,10 @@ impl IODevice {
     pub fn read_pins(&self) -> Result<IODeviceBitMode> {
         Ok(IODeviceBitMode::from_bits(self.read_pins_raw()?).unwrap_or(IODeviceBitMode::None))
     }
+
+    pub fn get_usb_device_info(&self) -> &UsbDeviceInfo {
+        &self.usb_device_info
+    }
 }
 
 #[cfg(test)]
@@ -184,6 +192,8 @@ mod test {
             let ftdi_device = device.get_ftdi_device()?;
             let mut io_device = IODevice::from(&ftdi_device)?;
             io_device.open()?;
+
+            assert_eq!(io_device.is_open(), true);
 
             // Test the buzzer
             io_device.set_bitmode(IODeviceBitMode::DefaultMask | IODeviceBitMode::Buzzer)?;

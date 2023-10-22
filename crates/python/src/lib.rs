@@ -18,6 +18,7 @@ fn find() -> PyResult<Vec<types::NeoVIMIC>> {
 fn neovi_mic(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<types::NeoVIMIC>()?;
     m.add_class::<types::UsbDeviceInfo>()?;
+    m.add_class::<types::IODevice>()?;
     m.add_function(wrap_pyfunction!(find, m)?)?;
     Ok(())
 }
