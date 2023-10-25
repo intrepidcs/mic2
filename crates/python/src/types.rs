@@ -1,32 +1,29 @@
 use std::sync::{Arc, Mutex};
 
 use neovi_mic_rs::io;
-use neovi_mic_rs::mic;
+use neovi_mic_rs::io::IODevice;
+use neovi_mic_rs::mic::{UsbDeviceInfo, NeoVIMIC};
 use pyo3::prelude::*;
 
-macro_rules! define_basic_py_object {
-    ($name:ident, $inner_name:ty) => {
-        #[pyclass]
-        #[derive(Debug)]
-        #[repr(transparent)]
-        pub struct $name(pub Arc<Mutex<$inner_name>>);
-
-        // Arc is only Send if T is Send so lets mark it as safe here
-        unsafe impl Send for $name {}
-
-        #[pymethods]
-        impl $name {
-            #[new]
-            fn py_new() -> Self {
-                Self::new()
-            }
-        }
-    };
-}
-
-macro_rules! define_basic_py_object_no_new {
-    ($name:ident, $inner_name:ty) => {
-        #[pyclass]
+/// Create a thread safe python object (struct).
+/// 
+/// Note: use `self.0.lock().unwrap()` to obtain the 
+/// inner object since its wrapped in an Arc<Mutex>.
+/// 
+/// # Arguments
+/// * `$name:ident` - Name of the struct visible in Rust.
+/// 
+/// * `$python_name` - Name of the object visible to Python.
+/// 
+/// * `$inner_name:ty` - name of the transparent inner struct we are trying to wrap.
+/// 
+/// # Example
+/// ```no_run
+/// create_python_object!(PyMyStruct, "MyStruct", MyStruct)
+/// ```
+macro_rules! create_python_object {
+    ($name:ident, $python_name:literal, $inner_name:ty) => {
+        #[pyclass(name=$python_name)]
         #[derive(Debug, Default, Clone)]
         #[repr(transparent)]
         pub struct $name(pub Arc<Mutex<$inner_name>>);
@@ -36,9 +33,9 @@ macro_rules! define_basic_py_object_no_new {
     };
 }
 
-define_basic_py_object_no_new!(NeoVIMIC, mic::NeoVIMIC);
+create_python_object!(PyNeoVIMIC, "NeoVIMIC", NeoVIMIC);
 #[pymethods]
-impl NeoVIMIC {
+impl PyNeoVIMIC {
     #[new]
     fn py_new() -> Self {
         Self {
@@ -64,37 +61,32 @@ impl NeoVIMIC {
         Ok(self.0.lock().unwrap().has_gps())
     }
 
-    fn get_ftdi_device(&self) -> PyResult<UsbDeviceInfo> {
-        Ok(UsbDeviceInfo::from(
+    #[getter]
+    fn ftdi(&self) -> PyResult<PyUsbDeviceInfo> {
+        Ok(PyUsbDeviceInfo::from(
             self.0.lock().unwrap().get_ftdi_device().unwrap(),
         ))
     }
 
-    fn get_io_device(&self) -> PyResult<IODevice> {
-        Ok(IODevice::from(
+    #[getter]
+    fn io(&self) -> PyResult<PyIODevice> {
+        Ok(PyIODevice::from(
             self.0.lock().unwrap().get_io_device().unwrap(),
         ))
     }
 }
 
-impl NeoVIMIC {
-    /* TODO
-    fn new() -> Self {
-        Self {
-            0: Arc::new(Mutex::new(mic::NeoVIMIC { ..Default::default() })),
-        }
-    }
-     */
-    pub fn from(neovi_mic: mic::NeoVIMIC) -> Self {
+impl PyNeoVIMIC {
+    pub fn from(neovi_mic: NeoVIMIC) -> Self {
         Self {
             0: Arc::new(Mutex::new(neovi_mic)),
         }
     }
 }
 
-define_basic_py_object_no_new!(UsbDeviceInfo, mic::UsbDeviceInfo);
+create_python_object!(PyUsbDeviceInfo, "UsbDeviceInfo", UsbDeviceInfo);
 #[pymethods]
-impl UsbDeviceInfo {
+impl PyUsbDeviceInfo {
     #[new]
     fn py_new() -> Self {
         Self {
@@ -143,15 +135,8 @@ impl UsbDeviceInfo {
     */
 }
 
-impl UsbDeviceInfo {
-    /* TODO
-    fn new() -> Self {
-        Self {
-            0: Arc::new(Mutex::new(mic::UsbDeviceInfo { ..Default::default() })),
-        }
-    }
-     */
-    pub fn from(usb_device_info: &mic::UsbDeviceInfo) -> Self {
+impl PyUsbDeviceInfo {
+    pub fn from(usb_device_info: &UsbDeviceInfo) -> Self {
         Self {
             0: Arc::new(Mutex::new(usb_device_info.to_owned())),
         }
@@ -203,9 +188,9 @@ impl TryFrom<u8> for PyIODeviceBitMode {
     }
 }
 
-define_basic_py_object_no_new!(IODevice, io::IODevice);
+create_python_object!(PyIODevice, "IODevice", IODevice);
 #[pymethods]
-impl IODevice {
+impl PyIODevice {
     #[new]
     fn py_new() -> Self {
         Self {
@@ -281,22 +266,15 @@ impl IODevice {
         )
     }
 
-    fn get_usb_device_info(&self) -> PyResult<UsbDeviceInfo> {
-        Ok(UsbDeviceInfo::from(
+    fn get_usb_device_info(&self) -> PyResult<PyUsbDeviceInfo> {
+        Ok(PyUsbDeviceInfo::from(
             self.0.lock().unwrap().get_usb_device_info(),
         ))
     }
 }
 
-impl IODevice {
-    /* TODO
-    fn new() -> Self {
-        Self {
-            0: Arc::new(Mutex::new(mic::UsbDeviceInfo { ..Default::default() })),
-        }
-    }
-     */
-    pub fn from(io_device: io::IODevice) -> Self {
+impl PyIODevice {
+    pub fn from(io_device: IODevice) -> Self {
         Self {
             0: Arc::new(Mutex::new(io_device)),
         }

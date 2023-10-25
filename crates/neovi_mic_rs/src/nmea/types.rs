@@ -345,7 +345,7 @@ impl GpsDMS {
     pub fn to_decimal(&self, p: i32) -> f64 {
         // There is probably a better way to do this since floating points suck but this "works"
         let mut degrees: f64 = self.degrees.into();
-        let mut minutes = self.minutes as f64 + (self.seconds as f64 / 60.0);
+        let minutes = self.minutes as f64 + (self.seconds as f64 / 60.0);
         //minutes = (minutes * 1000000.0).round() / 1000000.0;
         degrees +=  minutes / 60.0;
         degrees = round_f64(degrees, p, false);

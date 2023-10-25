@@ -1,5 +1,3 @@
-use std::default;
-
 use crate::{mic::UsbDeviceInfo, types::Result};
 use bitflags::bitflags;
 use libftdi1_sys::{

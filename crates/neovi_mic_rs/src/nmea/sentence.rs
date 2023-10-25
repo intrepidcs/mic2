@@ -1,5 +1,4 @@
 use super::types::{GstData, GsaData, GsvDataCollection, GllData, GgaData, VtgData, RmcData, Pubx00Data, Pubx03Data, Pubx04Data, NMEAError, NMEASentenceType, GpsDataFromNmeaString};
-use chrono::NaiveTime;
 
 /// Represents a GPS NMEA Sentence
 #[derive(Debug, Clone)]
