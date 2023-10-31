@@ -1,7 +1,7 @@
 use std::sync::{Arc, Mutex};
 
 use neovi_mic_rs::io;
-use neovi_mic_rs::io::IODevice;
+use neovi_mic_rs::io::IO;
 use neovi_mic_rs::mic::{UsbDeviceInfo, NeoVIMIC};
 use pyo3::prelude::*;
 
@@ -69,8 +69,8 @@ impl PyNeoVIMIC {
     }
 
     #[getter]
-    fn io(&self) -> PyResult<PyIODevice> {
-        Ok(PyIODevice::from(
+    fn io(&self) -> PyResult<PyIO> {
+        Ok(PyIO::from(
             self.0.lock().unwrap().get_io_device().unwrap(),
         ))
     }
@@ -143,54 +143,57 @@ impl PyUsbDeviceInfo {
     }
 }
 
-#[pyclass(name = "IODeviceBitMode")]
+#[pyclass(name = "IOBitMode")]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 #[repr(u8)]
-pub enum PyIODeviceBitMode {
-    None = 0x0,
-    Buzzer = 0x1,
-    Button = 0x2,
-    GPSLed = 0x4,
-    CBUS3 = 0x8,
-    BuzzerMask = 0x10,
-    ButtonMask = 0x20,
-    GPSLedMask = 0x40,
-    CBUS3Mask = 0x80,
-
-    DefaultMask = 0x50,
+pub enum PyIOBitMode {
+    Buzzer = io::IOBitMode::Buzzer as u8,
+    Button = io::IOBitMode::Button as u8,
+    GPSLed = io::IOBitMode::GPSLed as u8,
+    CBUS3 = io::IOBitMode::CBUS3 as u8,
+    BuzzerMask = io::IOBitMode::BuzzerMask as u8,
+    ButtonMask = io::IOBitMode::ButtonMask as u8,
+    GPSLedMask = io::IOBitMode::GPSLedMask as u8,
+    CBUS3Mask = io::IOBitMode::CBUS3Mask as u8,
 }
 
-impl TryFrom<io::IODeviceBitMode> for PyIODeviceBitMode {
+#[pymethods]
+impl PyIOBitMode {
+    #[getter]
+    pub fn value(&self) -> u8 {
+        match self {
+            Self::Buzzer => Self::Buzzer as u8,
+            Self::Button => Self::Button as u8,
+            Self::GPSLed => Self::GPSLed as u8,
+            Self::CBUS3 => Self::CBUS3 as u8,
+            Self::BuzzerMask => Self::BuzzerMask as u8,
+            Self::ButtonMask => Self::ButtonMask as u8,
+            Self::GPSLedMask => Self::GPSLedMask as u8,
+            Self::CBUS3Mask => Self::CBUS3Mask as u8,
+        }
+    }
+}
+
+impl TryFrom<io::IOBitMode> for PyIOBitMode {
     type Error = &'static str;
 
-    fn try_from(value: io::IODeviceBitMode) -> Result<Self, Self::Error> {
+    fn try_from(value: io::IOBitMode) -> Result<Self, Self::Error> {
         let value = match value {
-            io::IODeviceBitMode::None => Ok(PyIODeviceBitMode::None),
-            io::IODeviceBitMode::Buzzer => Ok(PyIODeviceBitMode::Buzzer),
-            io::IODeviceBitMode::Button => Ok(PyIODeviceBitMode::Button),
-            io::IODeviceBitMode::GPSLed => Ok(PyIODeviceBitMode::GPSLed),
-            io::IODeviceBitMode::CBUS3 => Ok(PyIODeviceBitMode::CBUS3),
-            io::IODeviceBitMode::BuzzerMask => Ok(PyIODeviceBitMode::BuzzerMask),
-            io::IODeviceBitMode::ButtonMask => Ok(PyIODeviceBitMode::ButtonMask),
-            io::IODeviceBitMode::DefaultMask => Ok(PyIODeviceBitMode::DefaultMask),
+            io::IOBitMode::Buzzer => Ok(PyIOBitMode::Buzzer),
+            io::IOBitMode::Button => Ok(PyIOBitMode::Button),
+            io::IOBitMode::GPSLed => Ok(PyIOBitMode::GPSLed),
+            io::IOBitMode::CBUS3 => Ok(PyIOBitMode::CBUS3),
+            io::IOBitMode::BuzzerMask => Ok(PyIOBitMode::BuzzerMask),
+            io::IOBitMode::ButtonMask => Ok(PyIOBitMode::ButtonMask),
             _ => Err("Invalid IODeviceBitMode!"),
         };
         value
     }
 }
 
-impl TryFrom<u8> for PyIODeviceBitMode {
-    type Error = &'static str;
-
-    fn try_from(value: u8) -> Result<Self, Self::Error> {
-        let bit_mode = io::IODeviceBitMode::from_bits(value).unwrap();
-        bit_mode.try_into()
-    }
-}
-
-create_python_object!(PyIODevice, "IODevice", IODevice);
+create_python_object!(PyIO, "IO", IO);
 #[pymethods]
-impl PyIODevice {
+impl PyIO {
     #[new]
     fn py_new() -> Self {
         Self {
@@ -239,12 +242,12 @@ impl PyIODevice {
         Ok(self.0.lock().unwrap().set_bitmode_raw(bitmask).unwrap())
     }
 
-    fn set_bitmode(&self, bitmask: PyIODeviceBitMode) -> PyResult<()> {
+    fn set_bitmode(&self, bitmask: PyIOBitMode) -> PyResult<()> {
         Ok(self
             .0
             .lock()
             .unwrap()
-            .set_bitmode(io::IODeviceBitMode::from_bits(bitmask as u8).unwrap())
+            .set_bitmode(io::IOBitMode::from_bits(bitmask as u8).unwrap())
             .unwrap())
     }
 
@@ -259,13 +262,6 @@ impl PyIODevice {
         Ok(self.0.lock().unwrap().read_pins_raw().unwrap())
     }
 
-    fn read_pins(&self) -> PyResult<PyIODeviceBitMode> {
-        Ok(
-            PyIODeviceBitMode::try_from(self.0.lock().unwrap().read_pins().unwrap().bits())
-                .unwrap(),
-        )
-    }
-
     fn get_usb_device_info(&self) -> PyResult<PyUsbDeviceInfo> {
         Ok(PyUsbDeviceInfo::from(
             self.0.lock().unwrap().get_usb_device_info(),
@@ -273,8 +269,8 @@ impl PyIODevice {
     }
 }
 
-impl PyIODevice {
-    pub fn from(io_device: IODevice) -> Self {
+impl PyIO {
+    pub fn from(io_device: IO) -> Self {
         Self {
             0: Arc::new(Mutex::new(io_device)),
         }
@@ -288,44 +284,44 @@ mod test {
     #[test]
     fn test_io_device_bit_mode() {
         assert_eq!(
-            PyIODeviceBitMode::None as u8,
-            io::IODeviceBitMode::None.bits() as u8
+            PyIOBitMode::None as u8,
+            io::IOBitMode::None.bits() as u8
         );
         assert_eq!(
-            PyIODeviceBitMode::Buzzer as u8,
-            io::IODeviceBitMode::Buzzer.bits() as u8
+            PyIOBitMode::Buzzer as u8,
+            io::IOBitMode::Buzzer.bits() as u8
         );
         assert_eq!(
-            PyIODeviceBitMode::Button as u8,
-            io::IODeviceBitMode::Button.bits() as u8
+            PyIOBitMode::Button as u8,
+            io::IOBitMode::Button.bits() as u8
         );
         assert_eq!(
-            PyIODeviceBitMode::GPSLed as u8,
-            io::IODeviceBitMode::GPSLed.bits() as u8
+            PyIOBitMode::GPSLed as u8,
+            io::IOBitMode::GPSLed.bits() as u8
         );
         assert_eq!(
-            PyIODeviceBitMode::CBUS3 as u8,
-            io::IODeviceBitMode::CBUS3.bits() as u8
+            PyIOBitMode::CBUS3 as u8,
+            io::IOBitMode::CBUS3.bits() as u8
         );
         assert_eq!(
-            PyIODeviceBitMode::BuzzerMask as u8,
-            io::IODeviceBitMode::BuzzerMask.bits() as u8
+            PyIOBitMode::BuzzerMask as u8,
+            io::IOBitMode::BuzzerMask.bits() as u8
         );
         assert_eq!(
-            PyIODeviceBitMode::ButtonMask as u8,
-            io::IODeviceBitMode::ButtonMask.bits() as u8
+            PyIOBitMode::ButtonMask as u8,
+            io::IOBitMode::ButtonMask.bits() as u8
         );
         assert_eq!(
-            PyIODeviceBitMode::GPSLedMask as u8,
-            io::IODeviceBitMode::GPSLedMask.bits() as u8
+            PyIOBitMode::GPSLedMask as u8,
+            io::IOBitMode::GPSLedMask.bits() as u8
         );
         assert_eq!(
-            PyIODeviceBitMode::CBUS3Mask as u8,
-            io::IODeviceBitMode::CBUS3Mask.bits() as u8
+            PyIOBitMode::CBUS3Mask as u8,
+            io::IOBitMode::CBUS3Mask.bits() as u8
         );
         assert_eq!(
-            PyIODeviceBitMode::DefaultMask as u8,
-            io::IODeviceBitMode::DefaultMask.bits() as u8
+            PyIOBitMode::DefaultMask as u8,
+            io::IOBitMode::DefaultMask.bits() as u8
         );
     }
 }

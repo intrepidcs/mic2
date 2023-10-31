@@ -1,5 +1,6 @@
 import unittest
 import neovi_mic
+from neovi_mic import IOBitMode
 import time
 
 class TestNeoVIMIC(unittest.TestCase):
@@ -20,17 +21,9 @@ class TestNeoVIMIC(unittest.TestCase):
 
     def test_io_buzzer(self):
         self.mic.io.open()
-        self.mic.io.set_bitmode_raw(0x51)
-        self.assertEqual(self.mic.io.read_pins_raw(), 0x01)
-        self.mic.io.set_bitmode_raw(0x50)
-        self.assertEqual(self.mic.io.read_pins_raw(), 0x00)
-        self.mic.io.close()
-    
-    def test_io_buzzer(self):
-        self.mic.io.open()
-        self.mic.io.set_bitmode_raw(0x54)
-        self.assertEqual(self.mic.io.read_pins_raw(), 0x04)
-        self.mic.io.set_bitmode_raw(0x50)
+        self.mic.io.set_bitmode_raw(IOBitMode.BuzzerMask.value | IOBitMode.Buzzer.value)
+        self.assertEqual(self.mic.io.read_pins_raw(), IOBitMode.Buzzer.value)
+        self.mic.io.set_bitmode_raw(IOBitMode.BuzzerMask.value)
         self.assertEqual(self.mic.io.read_pins_raw(), 0x00)
         self.mic.io.close()
 

@@ -1,4 +1,4 @@
-use crate::{types::Result, io::IODevice};
+use crate::{types::Result, io::IO};
 use rusb::{self, GlobalContext};
 
 /// Intrepid Control Systems, Inc. USB Vendor ID.
@@ -150,9 +150,9 @@ impl NeoVIMIC {
 
     /// Get the IODevice of the neoVI MIC. Control the buzzer, button, and GPS LED through
     /// this.
-    pub fn get_io_device(&self) -> Result<IODevice> {
+    pub fn get_io_device(&self) -> Result<IO> {
         let ftdi_device = self.get_ftdi_device()?;
-        Ok(IODevice::from(&ftdi_device)?)
+        Ok(IO::from(&ftdi_device)?)
     }
 }
 
