@@ -14,7 +14,7 @@ audio = ["dep:sfml"]
 
 [dependencies]
 #libftd2xx = { version = "0.32.2", features=[], optional = true }
-sfml = { version = "0.21.0", optional = true }
+sfml = { version = "0.20.0", optional = true }
 nmea-parser = { version = "0.10.0", optional = true }
 serialport = { version = "4.2.1", optional = true }
 rusb = "0.9.2"
@@ -22,4 +22,5 @@ libftdi1-sys = { version = "1.1.2", optional = true }
 bitflags = "2.3.3"
 regex = "1.9.1"
 chrono = "0.4.26"
+enumflags2 = "0.7.8"
 

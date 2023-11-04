@@ -1,147 +1,12 @@
-use std::sync::{Arc, Mutex};
+use pyo3::prelude::*;
+
+use crate::utils::create_python_object;
+use crate::usb::PyUsbDeviceInfo;
 
 use neovi_mic_rs::io;
 use neovi_mic_rs::io::IO;
-use neovi_mic_rs::mic::{UsbDeviceInfo, NeoVIMIC};
-use pyo3::prelude::*;
 
-/// Create a thread safe python object (struct).
-/// 
-/// Note: use `self.0.lock().unwrap()` to obtain the 
-/// inner object since its wrapped in an Arc<Mutex>.
-/// 
-/// # Arguments
-/// * `$name:ident` - Name of the struct visible in Rust.
-/// 
-/// * `$python_name` - Name of the object visible to Python.
-/// 
-/// * `$inner_name:ty` - name of the transparent inner struct we are trying to wrap.
-/// 
-/// # Example
-/// ```no_run
-/// create_python_object!(PyMyStruct, "MyStruct", MyStruct)
-/// ```
-macro_rules! create_python_object {
-    ($name:ident, $python_name:literal, $inner_name:ty) => {
-        #[pyclass(name=$python_name)]
-        #[derive(Debug, Default, Clone)]
-        #[repr(transparent)]
-        pub struct $name(pub Arc<Mutex<$inner_name>>);
-
-        // Arc is only Send if T is Send so lets mark it as safe here
-        unsafe impl Send for $name {}
-    };
-}
-
-create_python_object!(PyNeoVIMIC, "NeoVIMIC", NeoVIMIC);
-#[pymethods]
-impl PyNeoVIMIC {
-    #[new]
-    fn py_new() -> Self {
-        Self {
-            ..Default::default()
-        }
-    }
-
-    fn __str__(&self) -> String {
-        let serial = self.0.lock().unwrap().get_serial_number();
-        format!("NeoVI MIC2 {serial}").to_string()
-    }
-
-    fn __repr__(&self) -> String {
-        let description = self.__str__();
-        format!("<NeoVI MIC2 {description}").to_string()
-    }
-
-    fn get_serial_number(&self) -> PyResult<String> {
-        Ok(self.0.lock().unwrap().get_serial_number())
-    }
-
-    fn has_gps(&self) -> PyResult<bool> {
-        Ok(self.0.lock().unwrap().has_gps())
-    }
-
-    #[getter]
-    fn ftdi(&self) -> PyResult<PyUsbDeviceInfo> {
-        Ok(PyUsbDeviceInfo::from(
-            self.0.lock().unwrap().get_ftdi_device().unwrap(),
-        ))
-    }
-
-    #[getter]
-    fn io(&self) -> PyResult<PyIO> {
-        Ok(PyIO::from(
-            self.0.lock().unwrap().get_io_device().unwrap(),
-        ))
-    }
-}
-
-impl PyNeoVIMIC {
-    pub fn from(neovi_mic: NeoVIMIC) -> Self {
-        Self {
-            0: Arc::new(Mutex::new(neovi_mic)),
-        }
-    }
-}
-
-create_python_object!(PyUsbDeviceInfo, "UsbDeviceInfo", UsbDeviceInfo);
-#[pymethods]
-impl PyUsbDeviceInfo {
-    #[new]
-    fn py_new() -> Self {
-        Self {
-            ..Default::default()
-        }
-    }
-
-    fn __str__(&self) -> String {
-        let serial = match &self.0.lock().unwrap().serial_number {
-            Some(s) => s.clone(),
-            None => "None".to_string(),
-        };
-        format!("NeoVI MIC2 {serial}").to_string()
-    }
-
-    fn __repr__(&self) -> String {
-        let description = self.__str__();
-        format!("<NeoDevice {description}").to_string()
-    }
-
-    #[getter]
-    fn vendor_id(&self) -> PyResult<u16> {
-        Ok(self.0.lock().unwrap().vendor_id)
-    }
-
-    #[getter]
-    fn product_id(&self) -> PyResult<u16> {
-        Ok(self.0.lock().unwrap().product_id)
-    }
-
-    #[getter]
-    fn bus_number(&self) -> PyResult<u8> {
-        Ok(self.0.lock().unwrap().bus_number)
-    }
-
-    #[getter]
-    fn address(&self) -> PyResult<u8> {
-        Ok(self.0.lock().unwrap().address)
-    }
-
-    /* TODO
-    #[getter]
-    fn device_type(&self) -> PyResult<u32> {
-        Ok(self.0.lock().unwrap().device_type.into())
-    }
-    */
-}
-
-impl PyUsbDeviceInfo {
-    pub fn from(usb_device_info: &UsbDeviceInfo) -> Self {
-        Self {
-            0: Arc::new(Mutex::new(usb_device_info.to_owned())),
-        }
-    }
-}
+use std::sync::{Mutex, Arc};
 
 #[pyclass(name = "IOBitMode")]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -284,44 +149,36 @@ mod test {
     #[test]
     fn test_io_device_bit_mode() {
         assert_eq!(
-            PyIOBitMode::None as u8,
-            io::IOBitMode::None.bits() as u8
-        );
-        assert_eq!(
             PyIOBitMode::Buzzer as u8,
-            io::IOBitMode::Buzzer.bits() as u8
+            io::IOBitMode::Buzzer as u8
         );
         assert_eq!(
             PyIOBitMode::Button as u8,
-            io::IOBitMode::Button.bits() as u8
+            io::IOBitMode::Button as u8
         );
         assert_eq!(
             PyIOBitMode::GPSLed as u8,
-            io::IOBitMode::GPSLed.bits() as u8
+            io::IOBitMode::GPSLed as u8
         );
         assert_eq!(
             PyIOBitMode::CBUS3 as u8,
-            io::IOBitMode::CBUS3.bits() as u8
+            io::IOBitMode::CBUS3 as u8
         );
         assert_eq!(
             PyIOBitMode::BuzzerMask as u8,
-            io::IOBitMode::BuzzerMask.bits() as u8
+            io::IOBitMode::BuzzerMask as u8
         );
         assert_eq!(
             PyIOBitMode::ButtonMask as u8,
-            io::IOBitMode::ButtonMask.bits() as u8
+            io::IOBitMode::ButtonMask as u8
         );
         assert_eq!(
             PyIOBitMode::GPSLedMask as u8,
-            io::IOBitMode::GPSLedMask.bits() as u8
+            io::IOBitMode::GPSLedMask as u8
         );
         assert_eq!(
             PyIOBitMode::CBUS3Mask as u8,
-            io::IOBitMode::CBUS3Mask.bits() as u8
-        );
-        assert_eq!(
-            PyIOBitMode::DefaultMask as u8,
-            io::IOBitMode::DefaultMask.bits() as u8
+            io::IOBitMode::CBUS3Mask as u8
         );
     }
 }
