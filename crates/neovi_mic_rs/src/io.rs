@@ -214,20 +214,19 @@ mod test {
             panic!("Need at least one neoVI MIC connected, found 0 devices...");
         }
         for device in &devices {
-            let ftdi_device = device.get_ftdi_device()?;
-            let mut io_device = IO::from(&ftdi_device)?;
+            let mut io_device = device.get_io_device()?;
             io_device.open()?;
 
             assert_eq!(io_device.is_open(), true);
 
             // Test the buzzer
-            io_device.set_bitmode(IOBitMode::DefaultMask | IOBitMode::Buzzer)?;
+            io_device.set_bitmode(IOBitMode::ButtonMask | IOBitMode::Buzzer)?;
             std::thread::sleep(std::time::Duration::from_secs_f64(0.1f64));
             let pins = io_device.read_pins()?;
             assert_eq!(pins, IOBitMode::Buzzer, "Expected Buzzer to be enabled!");
 
             // Test the GPS LED
-            io_device.set_bitmode(IOBitMode::DefaultMask | IOBitMode::GPSLed)?;
+            io_device.set_bitmode(IOBitMode::GPSLedMask | IOBitMode::GPSLed)?;
             std::thread::sleep(std::time::Duration::from_secs_f64(0.1f64));
             let pins = io_device.read_pins()?;
             assert_eq!(pins, IOBitMode::GPSLed, "Expected GPS LED to be enabled!");
