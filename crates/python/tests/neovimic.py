@@ -5,7 +5,7 @@ import time
 
 class TestNeoVIMIC(unittest.TestCase):
     @classmethod
-    def setupClass(cls):
+    def setUpClass(cls):
         cls.mic = neovi_mic.find()[0]
 
     def test_finder(self):
