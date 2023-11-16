@@ -202,13 +202,21 @@ impl IO {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
+    use std::sync::Mutex;
+
     use crate::mic::find_neovi_mics;
 
     use super::*;
 
+    // Since we are dealing with Handles we can only open the device one at a time.
+    // cargo runs all tests in parallel.
+    static LOCK: Mutex<()> = Mutex::new(());
+
     #[test]
     fn test_io() -> Result<()> {
+        let _lock = LOCK.lock().unwrap();
+
         let mut devices = find_neovi_mics()?;
         if devices.len() == 0 {
             panic!("Need at least one neoVI MIC connected, found 0 devices...");
@@ -237,7 +245,44 @@ mod test {
             std::thread::sleep(std::time::Duration::from_secs_f64(0.1f64));
             let pins = io_device.read_pins()?;
             assert_eq!(pins.bits(), 0u8, "Expected GPS LED to be enabled!");
+            io_device.close()?;
+        }
+        Ok(())
+    }
 
+    #[test]
+    fn test_io_not_owned() -> Result<()> {
+        let _lock = LOCK.lock().unwrap();
+
+        let mut devices = find_neovi_mics()?;
+        if devices.len() == 0 {
+            panic!("Need at least one neoVI MIC connected, found 0 devices...");
+        }
+        for device in &mut devices {
+            let io_device = device.get_io_device()?;
+            //assert_eq!(device.get_io_device()?, io_device);
+            device.get_io_device()?.open()?;
+
+            assert_eq!(device.get_io_device()?.is_open(), true);
+
+            // Test the buzzer
+            device.get_io_device()?.set_bitmode(IOBitMode::BuzzerMask | IOBitMode::Buzzer)?;
+            std::thread::sleep(std::time::Duration::from_secs_f64(0.1f64));
+            let pins = device.get_io_device()?.read_pins()?;
+            assert_eq!(pins, IOBitMode::Buzzer, "Expected Buzzer to be enabled!");
+
+            // Test the GPS LED
+            device.get_io_device()?.set_bitmode(IOBitMode::GPSLedMask | IOBitMode::GPSLed)?;
+            std::thread::sleep(std::time::Duration::from_secs_f64(0.1f64));
+            let pins = device.get_io_device()?.read_pins()?;
+            assert_eq!(pins, IOBitMode::GPSLed, "Expected GPS LED to be enabled!");
+
+            // Turn everything off
+            device.get_io_device()?.set_bitmode(IOBitMode::GPSLedMask | IOBitMode::ButtonMask | IOBitMode::BuzzerMask)?;
+            std::thread::sleep(std::time::Duration::from_secs_f64(0.1f64));
+            let pins = device.get_io_device()?.read_pins()?;
+            assert_eq!(pins.bits(), 0u8, "Expected GPS LED to be enabled!");
+            device.get_io_device()?.close()?;
         }
         Ok(())
     }
