@@ -39,7 +39,7 @@ if [ $? -ne 0 ]; then
 fi
 
 echo "Running unit tests..."
-$py -m unittest discover
+python -m unittest discover
 if [ $? -ne 0 ]; then
     echo "Error: Failed to run unit tests.";
     exit 1;
