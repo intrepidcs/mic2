@@ -32,7 +32,7 @@ impl IOBitMode {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct IO {
     usb_device_info: UsbDeviceInfo,
     context: *mut ftdi_context,
@@ -209,18 +209,19 @@ mod test {
 
     #[test]
     fn test_io() -> Result<()> {
-        let devices = find_neovi_mics()?;
+        let mut devices = find_neovi_mics()?;
         if devices.len() == 0 {
             panic!("Need at least one neoVI MIC connected, found 0 devices...");
         }
-        for device in &devices {
-            let mut io_device = device.get_io_device()?;
+        for device in &mut devices {
+            let io_device = device.get_io_device()?;
+            //assert_eq!(device.get_io_device()?, io_device);
             io_device.open()?;
 
             assert_eq!(io_device.is_open(), true);
 
             // Test the buzzer
-            io_device.set_bitmode(IOBitMode::ButtonMask | IOBitMode::Buzzer)?;
+            io_device.set_bitmode(IOBitMode::BuzzerMask | IOBitMode::Buzzer)?;
             std::thread::sleep(std::time::Duration::from_secs_f64(0.1f64));
             let pins = io_device.read_pins()?;
             assert_eq!(pins, IOBitMode::Buzzer, "Expected Buzzer to be enabled!");
@@ -230,6 +231,13 @@ mod test {
             std::thread::sleep(std::time::Duration::from_secs_f64(0.1f64));
             let pins = io_device.read_pins()?;
             assert_eq!(pins, IOBitMode::GPSLed, "Expected GPS LED to be enabled!");
+
+            // Turn everything off
+            io_device.set_bitmode(IOBitMode::GPSLedMask | IOBitMode::ButtonMask | IOBitMode::BuzzerMask)?;
+            std::thread::sleep(std::time::Duration::from_secs_f64(0.1f64));
+            let pins = io_device.read_pins()?;
+            assert_eq!(pins.bits(), 0u8, "Expected GPS LED to be enabled!");
+
         }
         Ok(())
     }

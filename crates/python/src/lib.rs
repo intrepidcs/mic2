@@ -61,7 +61,7 @@ impl PyNeoVIMIC {
     #[getter]
     fn io(&self) -> PyResult<PyIO> {
         Ok(PyIO::from(
-            self.0.lock().unwrap().get_io_device().unwrap(),
+            self.0.lock().unwrap().get_io_device().unwrap().to_owned(),
         ))
     }
 }

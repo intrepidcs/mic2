@@ -63,6 +63,7 @@ pub struct NeoVIMIC {
     usb_hub: UsbDeviceInfo,
     usb_children: Vec<UsbDeviceInfo>,
     index: u32,
+    io: Option<IO>,
 }
 
 pub fn find_neovi_mics() -> Result<Vec<NeoVIMIC>> {
@@ -113,6 +114,7 @@ pub fn find_neovi_mics() -> Result<Vec<NeoVIMIC>> {
             usb_hub: usb_hub.clone(),
             usb_children,
             index: i as u32,
+            io: None,
         });
     }
     Ok(devices)
@@ -150,9 +152,15 @@ impl NeoVIMIC {
 
     /// Get the IODevice of the neoVI MIC. Control the buzzer, button, and GPS LED through
     /// this.
-    pub fn get_io_device(&self) -> Result<IO> {
-        let ftdi_device = self.get_ftdi_device()?;
-        Ok(IO::from(&ftdi_device)?)
+    pub fn get_io_device(&mut self) -> Result<&mut IO> {
+        if self.io.is_none() {
+            let ftdi_device = self.get_ftdi_device()?;
+            self.io = Some(IO::from(&ftdi_device)?)
+        }
+        match &mut self.io {
+            Some(io) => Ok(io),
+            None => Err("Error: IO object is None.".into()),
+        }
     }
 }
 
@@ -190,13 +198,14 @@ mod tests {
 
     #[test]
     fn test_get_io_device() {
-        let devices = find_neovi_mics().expect("Expected at least one neoVI MIC2!");
+        let mut devices = find_neovi_mics().expect("Expected at least one neoVI MIC2!");
         println!("{devices:#X?}");
 
         println!("Found {} device(s)", devices.len());
-        for device in &devices {
-            let mut io_device = device.get_io_device().unwrap();
+        for device in &mut devices {
+            let io_device = device.get_io_device().unwrap();
             io_device.open().unwrap();
+            assert_eq!(io_device.is_open(), true);
             io_device.close().unwrap();
         }
     }
