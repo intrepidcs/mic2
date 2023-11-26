@@ -89,11 +89,11 @@ pub struct NeoVIMIC {
     /// Extra USB devices plugged into the USB hub.
     extra_usb_info: Vec<UsbDeviceInfo>,
     /// IO device attached to the USB Hub.
-    pub io: Option<IO>,
+    io: Option<IO>,
     /// Audio Device attached to the USB Hub.
-    pub audio: Option<Audio>,
+    audio: Option<Audio>,
     /// GPS Device attached to the USB Hub.
-    pub gps: Option<GPSDevice>,
+    gps: Option<GPSDevice>,
 }
 
 pub fn find_neovi_mics() -> Result<Vec<NeoVIMIC>> {
@@ -289,6 +289,27 @@ impl NeoVIMIC {
             .expect("IO device not available")
             .read_pins()?;
         Ok(pins & IOBitMode::Button == IOBitMode::Button)
+    }
+
+    pub fn audio_start(&self, sample_rate: u32) -> Result<()> {
+        match &self.audio {
+            Some(audio) => audio.start(sample_rate),
+            None => panic!("Audio device isn't available"),
+        }
+    }
+
+    pub fn audio_stop(&self) -> Result<()> {
+        match &self.audio {
+            Some(audio) => audio.stop(),
+            None => panic!("Audio device isn't available"),
+        }
+    }
+
+    pub fn audio_save(&self, fname: impl Into<String>) -> Result<()> {
+        match &self.audio {
+            Some(audio) => audio.save_to_file(fname),
+            None => panic!("Audio device isn't available"),
+        }
     }
 }
 

@@ -1,8 +1,9 @@
 use crate::types::{Error, Result};
 use core::time;
+use std::cell::RefCell;
 
 use regex::Regex;
-use sfml::{self, audio::{SoundBufferRecorder}};
+use sfml::{self, audio::SoundBufferRecorder};
 
 #[derive(Debug)]
 pub struct Audio {
@@ -11,13 +12,16 @@ pub struct Audio {
     /// Index of the capture device if multiple, starts at 1
     /// "Monitor of PCM2912A Audio Codec Analog Stereo #2" would be an index of 2
     pub index: u32,
-    recorder: SoundBufferRecorder,
+    recorder: RefCell<SoundBufferRecorder>,
 }
 
 impl Clone for Audio {
     fn clone(&self) -> Self {
-        let mut recorder = SoundBufferRecorder::new();
-        recorder.set_device(self.capture_name.as_str()).expect("Failed to set recorder device name");
+        let mut recorder = RefCell::new(SoundBufferRecorder::new());
+        recorder
+            .borrow_mut()
+            .set_device(self.capture_name.as_str())
+            .expect("Failed to set recorder device name");
         Self {
             capture_name: self.capture_name.clone(),
             index: self.index,
@@ -50,9 +54,9 @@ impl Audio {
                 None => 1,
             };
             // Create the recorder
-            let mut recorder = SoundBufferRecorder::new();
+            let recorder = RefCell::new(SoundBufferRecorder::new());
             let name = device.to_str().unwrap();
-            recorder.set_device(name).unwrap();
+            recorder.borrow_mut().set_device(name).unwrap();
             // Create the Audio device
             capture_devices.push(Self {
                 capture_name: device.to_string(),
@@ -63,24 +67,28 @@ impl Audio {
         Ok(capture_devices)
     }
 
-    pub fn start(&mut self, sample_rate: u32) -> Result<()> {
-        if !self.recorder.start(sample_rate) {
-            return Err(Error::CriticalError("Failed to start recording!".into()))
+    pub fn start(&self, sample_rate: u32) -> Result<()> {
+        if !self.recorder.borrow_mut().start(sample_rate) {
+            return Err(Error::CriticalError("Failed to start recording!".into()));
         }
         Ok(())
     }
 
-    pub fn stop(&mut self) -> Result<()> {
-        self.recorder.stop();
+    pub fn stop(&self) -> Result<()> {
+        self.recorder.borrow_mut().stop();
         Ok(())
     }
 
-    pub fn save_to_file(&mut self, fname: impl Into<String>) -> Result<()> {
+    pub fn save_to_file(&self, fname: impl Into<String>) -> Result<()> {
         let fname: String = fname.into();
-        if !self.recorder.buffer().save_to_file(fname.as_str()) {
+        if !self.recorder.borrow_mut().buffer().save_to_file(fname.as_str()) {
             return Err(Error::CriticalError(
-                format!("Failed to save capture from {} to file {}", self.capture_name, fname).into())
-            );
+                format!(
+                    "Failed to save capture from {} to file {}",
+                    self.capture_name, fname
+                )
+                .into(),
+            ));
         }
         Ok(())
     }
@@ -114,7 +122,10 @@ mod test {
     fn test_find_neovi_mic2_capture() -> Result<()> {
         let mut devices = Audio::find_neovi_mic2_audio()?;
         println!("{devices:#?}");
-        assert!(devices.len() > 0, "Expected at least 1 neoVI MIC2 audio device!");
+        assert!(
+            devices.len() > 0,
+            "Expected at least 1 neoVI MIC2 audio device!"
+        );
         for (i, device) in devices.iter_mut().enumerate() {
             println!("Recording {}", device.capture_name);
             device.start(44_100)?;

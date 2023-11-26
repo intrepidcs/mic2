@@ -44,6 +44,21 @@ class TestNeoVIMIC(unittest.TestCase):
         # Close
         self.mic.io_close()
         self.assertEqual(self.mic.io_is_open(), False)
+
+    def test_audio(self):      
+        try:
+            # Turn on the buzzer so we have some sound to record
+            self.mic.io_open()
+            self.mic.io_buzzer_enable(True)
+            self.mic.audio_start(44_100)
+            time.sleep(0.5)
+            self.mic.audio_stop()
+            self.mic.audio_save("test.ogg")
+        finally:
+            # Always make sure we disable the buzzer, its annoying when left on.
+            self.mic.io_buzzer_enable(False)
+            self.mic.io_close()
+        
     
 
 if __name__ == '__main__':

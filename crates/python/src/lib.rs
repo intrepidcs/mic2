@@ -108,6 +108,18 @@ impl PyNeoVIMIC {
     fn io_button_is_pressed(&self) -> PyResult<bool> {
         Ok(self.0.lock().unwrap().io_button_is_pressed().unwrap())
     }
+
+    fn audio_start(&self, sample_rate: u32) -> PyResult<()> {
+        Ok(self.0.lock().unwrap().audio_start(sample_rate).unwrap())
+    }
+
+    fn audio_stop(&self) -> PyResult<()> {
+        Ok(self.0.lock().unwrap().audio_stop().unwrap())
+    }
+
+    fn audio_save(&self, fname: String) -> PyResult<()> {
+        Ok(self.0.lock().unwrap().audio_save(fname).unwrap())
+    }
 }
 
 impl PyNeoVIMIC {
