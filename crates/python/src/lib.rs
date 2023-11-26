@@ -5,8 +5,8 @@ use std::sync::{Arc, Mutex};
 
 use pyo3::prelude::*;
 
-use usb::PyUsbDeviceInfo;
 use neovi_mic_rs::mic::{find_neovi_mics, NeoVIMIC};
+use usb::PyUsbDeviceInfo;
 
 use crate::utils::create_python_object;
 
@@ -19,7 +19,6 @@ fn find() -> PyResult<Vec<PyNeoVIMIC>> {
         .collect::<Vec<PyNeoVIMIC>>();
     Ok(devices)
 }
-
 
 create_python_object!(PyNeoVIMIC, "NeoVIMIC", NeoVIMIC);
 #[pymethods]
@@ -47,6 +46,35 @@ impl PyNeoVIMIC {
 
     fn has_gps(&self) -> PyResult<bool> {
         Ok(self.0.lock().unwrap().has_gps())
+    }
+
+    fn get_usb_hub_info(&self) -> PyUsbDeviceInfo {
+        PyUsbDeviceInfo::from(self.0.lock().unwrap().get_usb_hub_info())
+    }
+
+    fn get_usb_io_info(&self) -> Option<PyUsbDeviceInfo> {
+        match self.0.lock().unwrap().get_usb_io_info() {
+            Some(info) => Some(PyUsbDeviceInfo::from(info)),
+            None => None,
+        }
+    }
+
+    fn get_usb_audio_info(&self) -> Option<PyUsbDeviceInfo> {
+        match self.0.lock().unwrap().get_usb_audio_info() {
+            Some(info) => Some(PyUsbDeviceInfo::from(info)),
+            None => None,
+        }
+    }
+
+    fn get_usb_gps_info(&self) -> Option<PyUsbDeviceInfo> {
+        match self.0.lock().unwrap().get_usb_gps_info() {
+            Some(info) => Some(PyUsbDeviceInfo::from(info)),
+            None => None,
+        }
+    }
+
+    fn get_usb_extra_info(&self) -> Vec<PyUsbDeviceInfo> {
+        self.0.lock().unwrap().get_usb_extra_info().iter().map(|info| PyUsbDeviceInfo::from(info)).collect()
     }
 
     fn io_open(&self) -> PyResult<()> {
@@ -89,7 +117,6 @@ impl PyNeoVIMIC {
         }
     }
 }
-
 
 /// A Python module implemented in Rust.
 #[pymodule]

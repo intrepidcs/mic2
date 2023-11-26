@@ -46,6 +46,5 @@ class TestNeoVIMIC(unittest.TestCase):
         self.assertEqual(self.mic.io_is_open(), False)
     
 
-
 if __name__ == '__main__':
     unittest.main()

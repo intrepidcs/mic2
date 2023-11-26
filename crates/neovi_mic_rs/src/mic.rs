@@ -1,18 +1,32 @@
 use std::borrow::BorrowMut;
 
-use crate::{types::Result, io::{IO, IOBitMode}};
+use crate::{
+    io::{IOBitMode, IO},
+    types::Result, gps::GPSDevice, audio::Audio,
+};
 use rusb::{self, GlobalContext};
 
 /// Intrepid Control Systems, Inc. USB Vendor ID.
 const NEOVI_MIC_VID: u16 = 0x93c;
 /// neoVI MIC2 Product ID, shared with ValueCAN3 PID.
 const NEOVI_MIC_PID: u16 = 0x601;
+/// neoVI MIC2 USB Hub Vedor ID.
+const NEOVI_MIC_HUB_VID: u16 = 0x424;
+/// neoVI MIC2 USB Hub Product ID.
+const NEOVI_MIC_HUB_PID: u16 = 0x2514;
+/// neoVI MIC2 Audio Vedor ID.
+const NEOVI_MIC_AUDIO_VID: u16 = 0x8BB;
+/// neoVI MIC2 Audio Product ID.
+const NEOVI_MIC_AUDIO_PID: u16 = 0x2912;
+/// neoVI MIC2 GPS Vedor ID.
+const NEOVI_MIC_GPS_VID: u16 = 0x1546;
+/// neoVI MIC2 GPS Product ID.
+const NEOVI_MIC_GPS_PID: u16 = 0x1A8;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum UsbDeviceType {
     MicrochipHub,
     FT245R,
-    FT245RAccessDenied,
     GPS,
     Audio,
     Unknown,
@@ -50,22 +64,36 @@ impl UsbDeviceInfo {
     }
 
     fn usb_device_type_from_vid_pid(vid: &u16, pid: &u16) -> UsbDeviceType {
-        match (vid, pid) {
-            (0x0424, 0x2514) => UsbDeviceType::MicrochipHub,
-            (0x93C, 0x601) => UsbDeviceType::FT245R,
-            (0x8BB, 0x2912) => UsbDeviceType::Audio,
-            (0x1546, 0x1A8) => UsbDeviceType::GPS,
+        match (*vid, *pid) {
+            (NEOVI_MIC_HUB_VID, NEOVI_MIC_HUB_PID) => UsbDeviceType::MicrochipHub,
+            (NEOVI_MIC_VID, NEOVI_MIC_PID) => UsbDeviceType::FT245R,
+            (NEOVI_MIC_AUDIO_VID, NEOVI_MIC_AUDIO_PID) => UsbDeviceType::Audio,
+            (NEOVI_MIC_GPS_VID, NEOVI_MIC_GPS_PID) => UsbDeviceType::GPS,
             _ => UsbDeviceType::Unknown,
         }
     }
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Default)]
 pub struct NeoVIMIC {
+    /// Index of the neoVI MIC, starts at 0. 2nd device would be 1.
+    pub index: u32,
+    /// Information on the USB hub inside the neoVI MIC2.
     usb_hub: UsbDeviceInfo,
-    usb_children: Vec<UsbDeviceInfo>,
-    index: u32,
+    /// FTDI USB info.
+    io_usb_info: Option<UsbDeviceInfo>,
+    /// Audio USB info.
+    audio_usb_info: Option<UsbDeviceInfo>,
+    /// GPS USB info.
+    gps_usb_info: Option<UsbDeviceInfo>,
+    /// Extra USB devices plugged into the USB hub.
+    extra_usb_info: Vec<UsbDeviceInfo>,
+    /// IO device attached to the USB Hub.
     pub io: Option<IO>,
+    /// Audio Device attached to the USB Hub.
+    pub audio: Option<Audio>,
+    /// GPS Device attached to the USB Hub.
+    pub gps: Option<GPSDevice>,
 }
 
 pub fn find_neovi_mics() -> Result<Vec<NeoVIMIC>> {
@@ -84,8 +112,22 @@ pub fn find_neovi_mics() -> Result<Vec<NeoVIMIC>> {
     let mut devices = Vec::new();
     // Find all children attached to all the hubs
     for (i, usb_hub) in usb_hubs.iter().enumerate() {
+        // define all the UsbDeviceInfo on the hub
+        let mut io_usb_info = None;
+        let mut audio_usb_info = None;
+        let mut gps_usb_info = None;
+        let mut extra_usb_info: Vec<UsbDeviceInfo> = Vec::new();
+        // define all the actual objects that reflect the UsbDeviceInfo
         let mut io = None;
-        let mut usb_children = Vec::new();
+        let mut audio = None;
+        let mut gps = None;
+        // Audio devices are kind of a pain to link to the actual hub so we are just
+        // going to match indexes on how they are found on the system. Index 0 neoVI MIC2 should match up
+        // to Index 1 of the audio codecs found.
+        let audio_devices = match Audio::find_neovi_mic2_audio() {
+            Ok(devs) => devs,
+            Err(e) => Vec::new(),
+        };
         for device in rusb::devices().unwrap().iter() {
             let parent = device.get_parent();
             if parent.is_none() {
@@ -94,33 +136,56 @@ pub fn find_neovi_mics() -> Result<Vec<NeoVIMIC>> {
             let parent = UsbDeviceInfo::from_rusb_device(&parent.unwrap());
             if parent == *usb_hub {
                 let mut child: UsbDeviceInfo = UsbDeviceInfo::from_rusb_device(&device);
-                // Lets attempt to open the device and get the serial number
-                if child.device_type == UsbDeviceType::FT245R {
-                    let serial_number = match &device.open() {
-                        Ok(handle) => handle
-                            .read_serial_number_string_ascii(&device.device_descriptor().unwrap())
-                            .unwrap(),
-                        Err(e) => {
-                            // Probably an access denied error, udev rules correct?
-                            format!("{e}").into()
-                        },
-                    };
-                    child = UsbDeviceInfo {
-                        serial_number: Some(serial_number.into()),
-                        ..child
-                    };
-                    io = IO::from(&child).ok();
+                // Match up the UsbDeviceInfo to the proper member
+                match &child.device_type {
+                    UsbDeviceType::MicrochipHub => {}
+                    UsbDeviceType::FT245R => {
+                        io_usb_info = Some(child.clone());
+                        io = IO::from(child.clone()).ok();
+                        // Lets attempt to open the device and get the serial number
+                        let serial_number = match &device.open() {
+                            Ok(handle) => handle
+                                .read_serial_number_string_ascii(&device.device_descriptor().unwrap())
+                                .unwrap(),
+                            Err(e) => {
+                                // Probably an access denied error, udev rules correct?
+                                format!("{e}").into()
+                            }
+                        };
+                        // Recreate the child with serial number.
+                        child = UsbDeviceInfo {
+                            serial_number: Some(serial_number.into()),
+                            ..child.clone()
+                        };
+                    }
+                    UsbDeviceType::GPS => {
+                        gps_usb_info = Some(child.clone());
+                        // TODO: gps = GPSDevice::from(child);
+                    }
+                    UsbDeviceType::Audio => {
+                        audio_usb_info = Some(child.clone());
+                        // See audio_device declaration above for information on how we are
+                        // matching indexes here.
+                        if i < audio_devices.len() {
+                            audio = Some(audio_devices[i].clone());
+                        }
+                    }
+                    UsbDeviceType::Unknown => extra_usb_info.push(child.clone()),
                 }
-                usb_children.push(child);
             }
         }
         // Create the IO device
 
         devices.push(NeoVIMIC {
-            usb_hub: usb_hub.clone(),
-            usb_children,
             index: i as u32,
+            usb_hub: usb_hub.clone(),
+            io_usb_info,
+            audio_usb_info,
+            gps_usb_info,
+            extra_usb_info,
             io,
+            audio,
+            gps,
         });
     }
     Ok(devices)
@@ -129,21 +194,34 @@ pub fn find_neovi_mics() -> Result<Vec<NeoVIMIC>> {
 impl NeoVIMIC {
     /// Returns true if this neoVI MIC2 has GPS capabilities, false otherwise
     pub fn has_gps(&self) -> bool {
-        for child in &self.usb_children {
-            if child.device_type == UsbDeviceType::GPS {
-                return true;
-            }
-        }
-        false
+        self.gps_usb_info.is_some()
     }
 
     pub fn get_serial_number(&self) -> String {
-        for child in &self.usb_children {
-            if child.device_type == UsbDeviceType::FT245R {
-                return child.serial_number.clone().unwrap_or_default();
-            }
+        match self.io_usb_info.as_ref() {
+            Some(info) => info.serial_number.clone().unwrap_or_default(),
+            None => "".into()
         }
-        "".into()
+    }
+
+    pub fn get_usb_hub_info(&self) -> &UsbDeviceInfo {
+        &self.usb_hub
+    }
+
+    pub fn get_usb_io_info(&self) -> &Option<UsbDeviceInfo> {
+        &self.io_usb_info
+    }
+
+    pub fn get_usb_audio_info(&self) -> &Option<UsbDeviceInfo> {
+        &self.audio_usb_info
+    }
+
+    pub fn get_usb_gps_info(&self) -> &Option<UsbDeviceInfo> {
+        &self.gps_usb_info
+    }
+
+    pub fn get_usb_extra_info(&self) -> &Vec<UsbDeviceInfo> {
+        &self.extra_usb_info
     }
 
     pub fn io_open(&self) -> Result<()> {
@@ -151,7 +229,11 @@ impl NeoVIMIC {
     }
 
     pub fn io_close(&self) -> Result<()> {
-        self.io.as_ref().expect("IO device not available").borrow_mut().close()
+        self.io
+            .as_ref()
+            .expect("IO device not available")
+            .borrow_mut()
+            .close()
     }
 
     pub fn io_is_open(&self) -> Result<bool> {
@@ -164,11 +246,18 @@ impl NeoVIMIC {
         } else {
             IOBitMode::BuzzerMask.into()
         };
-        self.io.as_ref().expect("IO device not available").set_bitmode(bit_mode)
+        self.io
+            .as_ref()
+            .expect("IO device not available")
+            .set_bitmode(bit_mode)
     }
 
     pub fn io_buzzer_is_enabled(&self) -> Result<bool> {
-        let pins = self.io.as_ref().expect("IO device not available").read_pins()?;
+        let pins = self
+            .io
+            .as_ref()
+            .expect("IO device not available")
+            .read_pins()?;
         Ok(pins & IOBitMode::Buzzer == IOBitMode::Buzzer)
     }
 
@@ -178,26 +267,28 @@ impl NeoVIMIC {
         } else {
             IOBitMode::GPSLedMask.into()
         };
-        self.io.as_ref().expect("IO device not available").set_bitmode(bit_mode)
+        self.io
+            .as_ref()
+            .expect("IO device not available")
+            .set_bitmode(bit_mode)
     }
 
     pub fn io_gpsled_is_enabled(&self) -> Result<bool> {
-        let pins = self.io.as_ref().expect("IO device not available").read_pins()?;
+        let pins = self
+            .io
+            .as_ref()
+            .expect("IO device not available")
+            .read_pins()?;
         Ok(pins & IOBitMode::GPSLed == IOBitMode::GPSLed)
     }
 
     pub fn io_button_is_pressed(&self) -> Result<bool> {
-        let pins = self.io.as_ref().expect("IO device not available").read_pins()?;
+        let pins = self
+            .io
+            .as_ref()
+            .expect("IO device not available")
+            .read_pins()?;
         Ok(pins & IOBitMode::Button == IOBitMode::Button)
-    }
-
-    fn get_first_child(&self, device_type: UsbDeviceType) -> Result<&UsbDeviceInfo> {
-        for usb_child in &self.usb_children {
-            if usb_child.device_type == device_type {
-                return Ok(usb_child);
-            }
-        }
-        Err(crate::types::Error::InvalidDevice("No valid device type found".into()))
     }
 }
 
@@ -205,18 +296,34 @@ impl NeoVIMIC {
 mod tests {
     use super::*;
 
+    fn _get_devices() -> Vec<NeoVIMIC> {
+        let devices = find_neovi_mics().expect("Expected at least one neoVI MIC2!");
+        //println!("{devices:#X?}");
+        println!("Found {} device(s)", devices.len());
+        devices
+    }
+
     #[test]
     fn test_find_neovi_mics() {
-        let devices = find_neovi_mics().expect("Expected at least one neoVI MIC2!");
-        println!("{devices:#X?}");
-
-        println!("Found {} device(s)", devices.len());
+        let devices = _get_devices();
         for device in &devices {
-            print!("neoVI MIC2 {} ", {device.get_serial_number()});
+            print!("neoVI MIC2 {} ", { device.get_serial_number() });
             match device.has_gps() {
                 true => println!("with GPS"),
                 false => println!(""),
             }
+        }
+    }
+
+    #[test]
+    fn test_hub() {
+        let devices = _get_devices();
+        for device in &devices {
+            let hub_info = device.get_hub_info();
+            println!("{:#?}", hub_info);
+            assert_eq!(hub_info.vendor_id, 0x424);
+            assert_eq!(hub_info.product_id, 0x2514);
+            assert_eq!(hub_info.device_type, UsbDeviceType::MicrochipHub);
         }
     }
 
@@ -231,20 +338,40 @@ mod tests {
 
             // Test the buzzer
             device.io_buzzer_enable(true).unwrap();
-            assert_eq!(device.io_buzzer_is_enabled().unwrap(), true, "Buzzer should be enabled and its not!");
+            assert_eq!(
+                device.io_buzzer_is_enabled().unwrap(),
+                true,
+                "Buzzer should be enabled and its not!"
+            );
             std::thread::sleep(std::time::Duration::from_secs_f64(0.1f64));
             device.io_buzzer_enable(false).unwrap();
-            assert_eq!(device.io_buzzer_is_enabled().unwrap(), false, "Buzzer should be disabled and its not!");
+            assert_eq!(
+                device.io_buzzer_is_enabled().unwrap(),
+                false,
+                "Buzzer should be disabled and its not!"
+            );
 
             // Test the GPS LED
             device.io_gpsled_enable(true).unwrap();
-            assert_eq!(device.io_gpsled_is_enabled().unwrap(), true, "GPS LED should be enabled and its not!");
+            assert_eq!(
+                device.io_gpsled_is_enabled().unwrap(),
+                true,
+                "GPS LED should be enabled and its not!"
+            );
             std::thread::sleep(std::time::Duration::from_secs_f64(0.1f64));
             device.io_gpsled_enable(false).unwrap();
-            assert_eq!(device.io_gpsled_is_enabled().unwrap(), false, "GPS LED should be disabled and its not!");
+            assert_eq!(
+                device.io_gpsled_is_enabled().unwrap(),
+                false,
+                "GPS LED should be disabled and its not!"
+            );
 
             // Test the button
-            assert_eq!(device.io_button_is_pressed().unwrap(), false, "Button shouldn't be pressed and it is!");
+            assert_eq!(
+                device.io_button_is_pressed().unwrap(),
+                false,
+                "Button shouldn't be pressed and it is!"
+            );
 
             device.io_close().unwrap();
         }

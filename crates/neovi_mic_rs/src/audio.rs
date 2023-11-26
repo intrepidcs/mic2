@@ -14,6 +14,18 @@ pub struct Audio {
     recorder: SoundBufferRecorder,
 }
 
+impl Clone for Audio {
+    fn clone(&self) -> Self {
+        let mut recorder = SoundBufferRecorder::new();
+        recorder.set_device(self.capture_name.as_str()).expect("Failed to set recorder device name");
+        Self {
+            capture_name: self.capture_name.clone(),
+            index: self.index,
+            recorder,
+        }
+    }
+}
+
 impl Audio {
     pub fn find_neovi_mic2_audio() -> Result<Vec<Self>> {
         // "PCM2912A Audio Codec Analog Stereo"
@@ -102,6 +114,7 @@ mod test {
     fn test_find_neovi_mic2_capture() -> Result<()> {
         let mut devices = Audio::find_neovi_mic2_audio()?;
         println!("{devices:#?}");
+        assert!(devices.len() > 0, "Expected at least 1 neoVI MIC2 audio device!");
         for (i, device) in devices.iter_mut().enumerate() {
             println!("Recording {}", device.capture_name);
             device.start(44_100)?;

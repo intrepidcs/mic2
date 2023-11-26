@@ -24,7 +24,7 @@ if [ $? -ne 0 ]; then
 fi
 
 echo "Installing Maturin..."
-pip install maturin
+pip install maturin patchelf
 if [ $? -ne 0 ]; then
     echo "Error: Failed to pip modules.";
     exit 1;

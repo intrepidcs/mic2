@@ -58,7 +58,7 @@ impl Drop for IO {
 }
 
 impl IO {
-    pub fn from(usb_device_info: &UsbDeviceInfo) -> Result<Self> {
+    pub fn from(usb_device_info: UsbDeviceInfo) -> Result<Self> {
         let context = unsafe { ftdi_new() };
         if context.is_null() {
             return Err(crate::types::Error::CriticalError(
@@ -66,7 +66,7 @@ impl IO {
             ));
         }
         Ok(Self {
-            usb_device_info: usb_device_info.clone(),
+            usb_device_info,
             context: RefCell::new(context),
             is_open: RefCell::new(false),
         })
