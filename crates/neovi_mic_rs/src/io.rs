@@ -1,3 +1,5 @@
+use std::cell::RefCell;
+
 use crate::{mic::UsbDeviceInfo, types::Result};
 use enumflags2::{bitflags, BitFlags};
 use libftdi1_sys::{
@@ -35,16 +37,16 @@ impl IOBitMode {
 #[derive(Debug, Clone, PartialEq)]
 pub struct IO {
     usb_device_info: UsbDeviceInfo,
-    context: *mut ftdi_context,
-    is_open: bool,
+    context: RefCell<*mut ftdi_context>,
+    is_open: RefCell<bool>,
 }
 
 impl Default for IO {
     fn default() -> Self {
         Self {
             usb_device_info: UsbDeviceInfo::default(),
-            context: std::ptr::null_mut(),
-            is_open: false,
+            context: RefCell::new(std::ptr::null_mut()),
+            is_open: RefCell::new(false),
         }
     }
 }
@@ -65,19 +67,19 @@ impl IO {
         }
         Ok(Self {
             usb_device_info: usb_device_info.clone(),
-            context: context,
-            is_open: false,
+            context: RefCell::new(context),
+            is_open: RefCell::new(false),
         })
     }
 
     pub fn is_open(&self) -> bool {
-        self.is_open
+        *self.is_open.borrow()
     }
 
-    pub fn open(&mut self) -> Result<()> {
+    pub fn open(&self) -> Result<()> {
         let result = unsafe {
             ftdi_usb_open_bus_addr(
-                self.context,
+                *self.context.borrow_mut(),
                 self.usb_device_info.bus_number,
                 self.usb_device_info.address,
             )
@@ -101,12 +103,12 @@ impl IO {
         if result != 0 {
             return Err(crate::types::Error::CriticalError(error_code));
         };
-        self.is_open = true;
+        *self.is_open.borrow_mut() = true;
         Ok(())
     }
 
-    pub fn close(&mut self) -> Result<()> {
-        let result = unsafe { ftdi_usb_close(self.context) };
+    pub fn close(&self) -> Result<()> {
+        let result = unsafe { ftdi_usb_close(*self.context.borrow_mut()) };
         let error_code: String = match result {
             0 => "all fine".into(),
             -1 => "usb_release failed".into(),
@@ -116,7 +118,7 @@ impl IO {
         if result != 0 {
             return Err(crate::types::Error::CriticalError(error_code));
         };
-        self.is_open = false;
+        *self.is_open.borrow_mut() = false;
         Ok(())
     }
 
@@ -132,7 +134,7 @@ impl IO {
     pub fn set_bitmode_raw(&self, bitmask: u8) -> Result<()> {
         let result = unsafe {
             ftdi_set_bitmode(
-                self.context,
+                *self.context.borrow_mut(),
                 bitmask,
                 libftdi1_sys::ftdi_mpsse_mode::BITMODE_CBUS
                     .0
@@ -174,7 +176,7 @@ impl IO {
     ///
     pub fn read_pins_raw(&self) -> Result<u8> {
         let mut pins: u8 = 0;
-        let result = unsafe { ftdi_read_pins(self.context, &mut pins) };
+        let result = unsafe { ftdi_read_pins(*self.context.borrow_mut(), &mut pins) };
         let error_code: String = match result {
             0 => "all fine".into(),
             -1 => "read pins failed".into(),
@@ -214,7 +216,7 @@ mod tests {
     static LOCK: Mutex<()> = Mutex::new(());
 
     #[test]
-    fn test_io() -> Result<()> {
+    fn test_io_ref() -> Result<()> {
         let _lock = LOCK.lock().unwrap();
 
         let mut devices = find_neovi_mics()?;
@@ -222,36 +224,39 @@ mod tests {
             panic!("Need at least one neoVI MIC connected, found 0 devices...");
         }
         for device in &mut devices {
-            let io_device = device.get_io_device()?;
-            //assert_eq!(device.get_io_device()?, io_device);
-            io_device.open()?;
+            let io = device.io.as_ref().expect("IO is not valid");
 
-            assert_eq!(io_device.is_open(), true);
+            // Open and check
+            io.open()?;
+            assert_eq!(io.is_open(), true);
 
             // Test the buzzer
-            io_device.set_bitmode(IOBitMode::BuzzerMask | IOBitMode::Buzzer)?;
+            io.set_bitmode(IOBitMode::BuzzerMask | IOBitMode::Buzzer)?;
             std::thread::sleep(std::time::Duration::from_secs_f64(0.1f64));
-            let pins = io_device.read_pins()?;
+            let pins = io.read_pins()?;
             assert_eq!(pins, IOBitMode::Buzzer, "Expected Buzzer to be enabled!");
 
             // Test the GPS LED
-            io_device.set_bitmode(IOBitMode::GPSLedMask | IOBitMode::GPSLed)?;
+            io.set_bitmode(IOBitMode::GPSLedMask | IOBitMode::GPSLed)?;
             std::thread::sleep(std::time::Duration::from_secs_f64(0.1f64));
-            let pins = io_device.read_pins()?;
+            let pins = io.read_pins()?;
             assert_eq!(pins, IOBitMode::GPSLed, "Expected GPS LED to be enabled!");
 
             // Turn everything off
-            io_device.set_bitmode(IOBitMode::GPSLedMask | IOBitMode::ButtonMask | IOBitMode::BuzzerMask)?;
+            io.set_bitmode(IOBitMode::GPSLedMask | IOBitMode::ButtonMask | IOBitMode::BuzzerMask)?;
             std::thread::sleep(std::time::Duration::from_secs_f64(0.1f64));
-            let pins = io_device.read_pins()?;
+            let pins = io.read_pins()?;
             assert_eq!(pins.bits(), 0u8, "Expected GPS LED to be enabled!");
-            io_device.close()?;
+
+            // Close and check
+            io.close()?;
+            assert_eq!(io.is_open(), false);
         }
         Ok(())
     }
-
+    
     #[test]
-    fn test_io_not_owned() -> Result<()> {
+    fn test_io_owned() -> Result<()> {
         let _lock = LOCK.lock().unwrap();
 
         let mut devices = find_neovi_mics()?;
@@ -259,30 +264,33 @@ mod tests {
             panic!("Need at least one neoVI MIC connected, found 0 devices...");
         }
         for device in &mut devices {
-            let io_device = device.get_io_device()?;
-            //assert_eq!(device.get_io_device()?, io_device);
-            device.get_io_device()?.open()?;
+            let io = device.io.to_owned().expect("IO is not valid");
 
-            assert_eq!(device.get_io_device()?.is_open(), true);
+            // Open and check
+            io.open()?;
+            assert_eq!(io.is_open(), true);
 
             // Test the buzzer
-            device.get_io_device()?.set_bitmode(IOBitMode::BuzzerMask | IOBitMode::Buzzer)?;
+            io.set_bitmode(IOBitMode::BuzzerMask | IOBitMode::Buzzer)?;
             std::thread::sleep(std::time::Duration::from_secs_f64(0.1f64));
-            let pins = device.get_io_device()?.read_pins()?;
+            let pins = io.read_pins()?;
             assert_eq!(pins, IOBitMode::Buzzer, "Expected Buzzer to be enabled!");
 
             // Test the GPS LED
-            device.get_io_device()?.set_bitmode(IOBitMode::GPSLedMask | IOBitMode::GPSLed)?;
+            io.set_bitmode(IOBitMode::GPSLedMask | IOBitMode::GPSLed)?;
             std::thread::sleep(std::time::Duration::from_secs_f64(0.1f64));
-            let pins = device.get_io_device()?.read_pins()?;
+            let pins = io.read_pins()?;
             assert_eq!(pins, IOBitMode::GPSLed, "Expected GPS LED to be enabled!");
 
             // Turn everything off
-            device.get_io_device()?.set_bitmode(IOBitMode::GPSLedMask | IOBitMode::ButtonMask | IOBitMode::BuzzerMask)?;
+            io.set_bitmode(IOBitMode::GPSLedMask | IOBitMode::ButtonMask | IOBitMode::BuzzerMask)?;
             std::thread::sleep(std::time::Duration::from_secs_f64(0.1f64));
-            let pins = device.get_io_device()?.read_pins()?;
+            let pins = io.read_pins()?;
             assert_eq!(pins.bits(), 0u8, "Expected GPS LED to be enabled!");
-            device.get_io_device()?.close()?;
+
+            // Close and check
+            io.close()?;
+            assert_eq!(io.is_open(), false);
         }
         Ok(())
     }

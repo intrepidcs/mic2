@@ -1,5 +1,4 @@
 pub mod usb;
-pub mod io;
 pub mod utils;
 
 use std::sync::{Arc, Mutex};
@@ -7,7 +6,6 @@ use std::sync::{Arc, Mutex};
 use pyo3::prelude::*;
 
 use usb::PyUsbDeviceInfo;
-use io::{PyIO, PyIOBitMode};
 use neovi_mic_rs::mic::{find_neovi_mics, NeoVIMIC};
 
 use crate::utils::create_python_object;
@@ -51,18 +49,36 @@ impl PyNeoVIMIC {
         Ok(self.0.lock().unwrap().has_gps())
     }
 
-    #[getter]
-    fn ftdi(&self) -> PyResult<PyUsbDeviceInfo> {
-        Ok(PyUsbDeviceInfo::from(
-            self.0.lock().unwrap().get_ftdi_device().unwrap(),
-        ))
+    fn io_open(&self) -> PyResult<()> {
+        Ok(self.0.lock().unwrap().io_open().unwrap())
     }
 
-    #[getter]
-    fn io(&self) -> PyResult<PyIO> {
-        Ok(PyIO::from(
-            self.0.lock().unwrap().get_io_device().unwrap().to_owned(),
-        ))
+    fn io_close(&self) -> PyResult<()> {
+        Ok(self.0.lock().unwrap().io_close().unwrap())
+    }
+
+    fn io_is_open(&self) -> PyResult<bool> {
+        Ok(self.0.lock().unwrap().io_is_open().unwrap())
+    }
+
+    fn io_buzzer_enable(&self, enabled: bool) -> PyResult<()> {
+        Ok(self.0.lock().unwrap().io_buzzer_enable(enabled).unwrap())
+    }
+
+    fn io_buzzer_is_enabled(&self) -> PyResult<bool> {
+        Ok(self.0.lock().unwrap().io_buzzer_is_enabled().unwrap())
+    }
+
+    fn io_gpsled_enable(&self, enabled: bool) -> PyResult<()> {
+        Ok(self.0.lock().unwrap().io_gpsled_enable(enabled).unwrap())
+    }
+
+    fn io_gpsled_is_enabled(&self) -> PyResult<bool> {
+        Ok(self.0.lock().unwrap().io_gpsled_is_enabled().unwrap())
+    }
+
+    fn io_button_is_pressed(&self) -> PyResult<bool> {
+        Ok(self.0.lock().unwrap().io_button_is_pressed().unwrap())
     }
 }
 
@@ -80,8 +96,6 @@ impl PyNeoVIMIC {
 fn neovi_mic(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<PyNeoVIMIC>()?;
     m.add_class::<PyUsbDeviceInfo>()?;
-    m.add_class::<PyIO>()?;
-    m.add_class::<PyIOBitMode>()?;
     m.add_function(wrap_pyfunction!(find, m)?)?;
     Ok(())
 }

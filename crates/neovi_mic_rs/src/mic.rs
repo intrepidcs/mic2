@@ -1,4 +1,6 @@
-use crate::{types::Result, io::IO};
+use std::borrow::BorrowMut;
+
+use crate::{types::Result, io::{IO, IOBitMode}};
 use rusb::{self, GlobalContext};
 
 /// Intrepid Control Systems, Inc. USB Vendor ID.
@@ -63,7 +65,7 @@ pub struct NeoVIMIC {
     usb_hub: UsbDeviceInfo,
     usb_children: Vec<UsbDeviceInfo>,
     index: u32,
-    io: Option<IO>,
+    pub io: Option<IO>,
 }
 
 pub fn find_neovi_mics() -> Result<Vec<NeoVIMIC>> {
@@ -82,6 +84,7 @@ pub fn find_neovi_mics() -> Result<Vec<NeoVIMIC>> {
     let mut devices = Vec::new();
     // Find all children attached to all the hubs
     for (i, usb_hub) in usb_hubs.iter().enumerate() {
+        let mut io = None;
         let mut usb_children = Vec::new();
         for device in rusb::devices().unwrap().iter() {
             let parent = device.get_parent();
@@ -106,15 +109,18 @@ pub fn find_neovi_mics() -> Result<Vec<NeoVIMIC>> {
                         serial_number: Some(serial_number.into()),
                         ..child
                     };
+                    io = IO::from(&child).ok();
                 }
                 usb_children.push(child);
             }
         }
+        // Create the IO device
+
         devices.push(NeoVIMIC {
             usb_hub: usb_hub.clone(),
             usb_children,
             index: i as u32,
-            io: None,
+            io,
         });
     }
     Ok(devices)
@@ -140,27 +146,58 @@ impl NeoVIMIC {
         "".into()
     }
 
-    /// Get the FTDI device inside the neoVI MIC. This is used with IODevice.
-    pub fn get_ftdi_device(&self) -> Result<&UsbDeviceInfo> {
-        for device in &self.usb_children {
-            if device.device_type == UsbDeviceType::FT245R {
-                return Ok(device);
-            }
-        }
-        Err(crate::types::Error::InvalidDevice("No valid FTDI devices found".into()))
+    pub fn io_open(&self) -> Result<()> {
+        self.io.as_ref().expect("IO device not available").open()
     }
 
-    /// Get the IODevice of the neoVI MIC. Control the buzzer, button, and GPS LED through
-    /// this.
-    pub fn get_io_device(&mut self) -> Result<&mut IO> {
-        if self.io.is_none() {
-            let ftdi_device = self.get_ftdi_device()?;
-            self.io = Some(IO::from(&ftdi_device)?)
+    pub fn io_close(&self) -> Result<()> {
+        self.io.as_ref().expect("IO device not available").borrow_mut().close()
+    }
+
+    pub fn io_is_open(&self) -> Result<bool> {
+        Ok(self.io.as_ref().expect("IO device not available").is_open())
+    }
+
+    pub fn io_buzzer_enable(&self, enabled: bool) -> Result<()> {
+        let bit_mode = if enabled {
+            IOBitMode::BuzzerMask | IOBitMode::Buzzer
+        } else {
+            IOBitMode::BuzzerMask.into()
+        };
+        self.io.as_ref().expect("IO device not available").set_bitmode(bit_mode)
+    }
+
+    pub fn io_buzzer_is_enabled(&self) -> Result<bool> {
+        let pins = self.io.as_ref().expect("IO device not available").read_pins()?;
+        Ok(pins & IOBitMode::Buzzer == IOBitMode::Buzzer)
+    }
+
+    pub fn io_gpsled_enable(&self, enabled: bool) -> Result<()> {
+        let bit_mode = if enabled {
+            IOBitMode::GPSLedMask | IOBitMode::GPSLed
+        } else {
+            IOBitMode::GPSLedMask.into()
+        };
+        self.io.as_ref().expect("IO device not available").set_bitmode(bit_mode)
+    }
+
+    pub fn io_gpsled_is_enabled(&self) -> Result<bool> {
+        let pins = self.io.as_ref().expect("IO device not available").read_pins()?;
+        Ok(pins & IOBitMode::GPSLed == IOBitMode::GPSLed)
+    }
+
+    pub fn io_button_is_pressed(&self) -> Result<bool> {
+        let pins = self.io.as_ref().expect("IO device not available").read_pins()?;
+        Ok(pins & IOBitMode::Button == IOBitMode::Button)
+    }
+
+    fn get_first_child(&self, device_type: UsbDeviceType) -> Result<&UsbDeviceInfo> {
+        for usb_child in &self.usb_children {
+            if usb_child.device_type == device_type {
+                return Ok(usb_child);
+            }
         }
-        match &mut self.io {
-            Some(io) => Ok(io),
-            None => Err("Error: IO object is None.".into()),
-        }
+        Err(crate::types::Error::InvalidDevice("No valid device type found".into()))
     }
 }
 
@@ -184,29 +221,32 @@ mod tests {
     }
 
     #[test]
-    fn test_get_ftdi_device() {
+    fn test_io() {
         let devices = find_neovi_mics().expect("Expected at least one neoVI MIC2!");
         println!("{devices:#X?}");
 
         println!("Found {} device(s)", devices.len());
-        for device in &devices {
-            let ftdi_device = device.get_ftdi_device().unwrap();
-            assert_eq!(ftdi_device.vendor_id, NEOVI_MIC_VID);
-            assert_eq!(ftdi_device.product_id, NEOVI_MIC_PID);
-        }
-    }
+        for device in devices {
+            device.io_open().unwrap();
 
-    #[test]
-    fn test_get_io_device() {
-        let mut devices = find_neovi_mics().expect("Expected at least one neoVI MIC2!");
-        println!("{devices:#X?}");
+            // Test the buzzer
+            device.io_buzzer_enable(true).unwrap();
+            assert_eq!(device.io_buzzer_is_enabled().unwrap(), true, "Buzzer should be enabled and its not!");
+            std::thread::sleep(std::time::Duration::from_secs_f64(0.1f64));
+            device.io_buzzer_enable(false).unwrap();
+            assert_eq!(device.io_buzzer_is_enabled().unwrap(), false, "Buzzer should be disabled and its not!");
 
-        println!("Found {} device(s)", devices.len());
-        for device in &mut devices {
-            let io_device = device.get_io_device().unwrap();
-            io_device.open().unwrap();
-            assert_eq!(io_device.is_open(), true);
-            io_device.close().unwrap();
+            // Test the GPS LED
+            device.io_gpsled_enable(true).unwrap();
+            assert_eq!(device.io_gpsled_is_enabled().unwrap(), true, "GPS LED should be enabled and its not!");
+            std::thread::sleep(std::time::Duration::from_secs_f64(0.1f64));
+            device.io_gpsled_enable(false).unwrap();
+            assert_eq!(device.io_gpsled_is_enabled().unwrap(), false, "GPS LED should be disabled and its not!");
+
+            // Test the button
+            assert_eq!(device.io_button_is_pressed().unwrap(), false, "Button shouldn't be pressed and it is!");
+
+            device.io_close().unwrap();
         }
     }
 }
