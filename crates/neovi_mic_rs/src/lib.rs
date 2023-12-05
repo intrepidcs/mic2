@@ -4,6 +4,8 @@ pub mod types;
 pub mod gps;
 #[cfg(feature="gps")]
 pub mod nmea;
+#[cfg(feature="gps")]
+pub mod ubx;
 
 #[cfg(feature="audio")]
 pub mod audio;

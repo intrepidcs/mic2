@@ -340,7 +340,7 @@ mod tests {
     fn test_hub() {
         let devices = _get_devices();
         for device in &devices {
-            let hub_info = device.get_hub_info();
+            let hub_info = device.get_usb_hub_info();
             println!("{:#?}", hub_info);
             assert_eq!(hub_info.vendor_id, 0x424);
             assert_eq!(hub_info.product_id, 0x2514);
