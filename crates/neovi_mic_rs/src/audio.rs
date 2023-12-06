@@ -17,7 +17,7 @@ pub struct Audio {
 
 impl Clone for Audio {
     fn clone(&self) -> Self {
-        let mut recorder = RefCell::new(SoundBufferRecorder::new());
+        let recorder = RefCell::new(SoundBufferRecorder::new());
         recorder
             .borrow_mut()
             .set_device(self.capture_name.as_str())

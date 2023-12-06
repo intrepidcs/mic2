@@ -120,13 +120,13 @@ pub fn find_neovi_mics() -> Result<Vec<NeoVIMIC>> {
         // define all the actual objects that reflect the UsbDeviceInfo
         let mut io = None;
         let mut audio = None;
-        let mut gps = None;
+        let gps = None;
         // Audio devices are kind of a pain to link to the actual hub so we are just
         // going to match indexes on how they are found on the system. Index 0 neoVI MIC2 should match up
         // to Index 1 of the audio codecs found.
         let audio_devices = match Audio::find_neovi_mic2_audio() {
             Ok(devs) => devs,
-            Err(e) => Vec::new(),
+            Err(_e) => Vec::new(),
         };
         for device in rusb::devices().unwrap().iter() {
             let parent = device.get_parent();
