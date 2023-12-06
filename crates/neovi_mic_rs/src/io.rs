@@ -216,7 +216,7 @@ mod tests {
     static LOCK: Mutex<()> = Mutex::new(());
 
     #[test]
-    fn test_io_ref() -> Result<()> {
+    fn test_io() -> Result<()> {
         let _lock = LOCK.lock().unwrap();
 
         let mut devices = find_neovi_mics()?;
@@ -224,73 +224,30 @@ mod tests {
             panic!("Need at least one neoVI MIC connected, found 0 devices...");
         }
         for device in &mut devices {
-            let io = device.io.as_ref().expect("IO is not valid");
-
             // Open and check
-            io.open()?;
-            assert_eq!(io.is_open(), true);
+            device.io_open()?;
+            assert_eq!(device.io_is_open()?, true);
 
             // Test the buzzer
-            io.set_bitmode(IOBitMode::BuzzerMask | IOBitMode::Buzzer)?;
+            device.io_buzzer_enable(true)?;
             std::thread::sleep(std::time::Duration::from_secs_f64(0.1f64));
-            let pins = io.read_pins()?;
-            assert_eq!(pins, IOBitMode::Buzzer, "Expected Buzzer to be enabled!");
+            assert_eq!(device.io_buzzer_is_enabled()?, true, "Expected Buzzer to be enabled!");
+            device.io_buzzer_enable(false)?;
+            assert_eq!(device.io_buzzer_is_enabled()?, false, "Expected Buzzer to be disabled!");
 
             // Test the GPS LED
-            io.set_bitmode(IOBitMode::GPSLedMask | IOBitMode::GPSLed)?;
+            device.io_gpsled_enable(true)?;
             std::thread::sleep(std::time::Duration::from_secs_f64(0.1f64));
-            let pins = io.read_pins()?;
-            assert_eq!(pins, IOBitMode::GPSLed, "Expected GPS LED to be enabled!");
+            assert_eq!(device.io_gpsled_is_enabled()?, true, "Expected GPS LED to be enabled!");
+            device.io_gpsled_enable(false)?;
+            assert_eq!(device.io_gpsled_is_enabled()?, false, "Expected GPS LED to be disabled!");
 
-            // Turn everything off
-            io.set_bitmode(IOBitMode::GPSLedMask | IOBitMode::ButtonMask | IOBitMode::BuzzerMask)?;
-            std::thread::sleep(std::time::Duration::from_secs_f64(0.1f64));
-            let pins = io.read_pins()?;
-            assert_eq!(pins.bits(), 0u8, "Expected GPS LED to be enabled!");
+            // Test button
+            assert_eq!(device.io_button_is_pressed()?, false);
 
             // Close and check
-            io.close()?;
-            assert_eq!(io.is_open(), false);
-        }
-        Ok(())
-    }
-    
-    #[test]
-    fn test_io_owned() -> Result<()> {
-        let _lock = LOCK.lock().unwrap();
-
-        let mut devices = find_neovi_mics()?;
-        if devices.len() == 0 {
-            panic!("Need at least one neoVI MIC connected, found 0 devices...");
-        }
-        for device in &mut devices {
-            let io = device.io.to_owned().expect("IO is not valid");
-
-            // Open and check
-            io.open()?;
-            assert_eq!(io.is_open(), true);
-
-            // Test the buzzer
-            io.set_bitmode(IOBitMode::BuzzerMask | IOBitMode::Buzzer)?;
-            std::thread::sleep(std::time::Duration::from_secs_f64(0.1f64));
-            let pins = io.read_pins()?;
-            assert_eq!(pins, IOBitMode::Buzzer, "Expected Buzzer to be enabled!");
-
-            // Test the GPS LED
-            io.set_bitmode(IOBitMode::GPSLedMask | IOBitMode::GPSLed)?;
-            std::thread::sleep(std::time::Duration::from_secs_f64(0.1f64));
-            let pins = io.read_pins()?;
-            assert_eq!(pins, IOBitMode::GPSLed, "Expected GPS LED to be enabled!");
-
-            // Turn everything off
-            io.set_bitmode(IOBitMode::GPSLedMask | IOBitMode::ButtonMask | IOBitMode::BuzzerMask)?;
-            std::thread::sleep(std::time::Duration::from_secs_f64(0.1f64));
-            let pins = io.read_pins()?;
-            assert_eq!(pins.bits(), 0u8, "Expected GPS LED to be enabled!");
-
-            // Close and check
-            io.close()?;
-            assert_eq!(io.is_open(), false);
+            device.io_close()?;
+            assert_eq!(device.io_is_open()?, false);
         }
         Ok(())
     }
