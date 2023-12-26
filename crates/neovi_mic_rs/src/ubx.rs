@@ -1,4 +1,10 @@
 use std::fmt;
+use serde::{Serialize, Deserialize};
+use nom::{
+    bytes::complete::take,
+    number::complete::{be_u16, be_u8},
+    IResult,
+};
 
 
 #[derive(Debug)]
@@ -13,7 +19,7 @@ pub type Result<T> = std::result::Result<T, Error>;
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match &self {
-            Self::MalformedHeader(s) => write!(f, "Malformed ubx header: {:#?}", s),
+            Self::MalformedHeader(s) => write!(f, "Malformed GPS ubx header: {:#?}", s),
         }
     }
 }
@@ -24,6 +30,38 @@ impl From<&str> for Error {
     }
 }
 
+impl<E> From<nom::Err<E>::Error> for Error {
+    fn from(value: nom::Err<E>::Error) -> Self {
+        match value {
+            nom::Err::Error(e) => Self::MalformedHeader(e.into()),
+            nom::Err::Failure(e) => Self::MalformedHeader(e.into()),
+            nom::Err::Incomplete(e) => Self::MalformedHeader("Incomplete data".to_string()),
+        }
+    }
+}
+/*
+impl<I> ParseError<I> for Error<I> {
+    fn from_error_kind(input: I, kind: ErrorKind) -> Self {
+      CustomError::Nom(input, kind)
+    }
+  
+    fn append(_: I, _: ErrorKind, other: Self) -> Self {
+      other
+    }
+  }
+*/
+
+/*
+impl<E> From<nom::Err<E>> for Error where std::string::String: From<E> {
+    fn from(value: nom::Err<E>) -> Self {
+        match value {
+            nom::Err::Error(e) => Self::MalformedHeader(e.into()),
+            nom::Err::Failure(e) => Self::MalformedHeader(e.into()),
+            nom::Err::Incomplete(e) => Self::MalformedHeader("Incomplete".to_string()),
+        }
+    }
+}
+*/
 
 // 25.1 Structure Packing
 // Values are placed in an order that structure packing is not a problem. This means that 2Byte values shall start
@@ -35,70 +73,55 @@ impl From<&str> for Error {
 // All floating point values are transmitted in IEEE754 single or double precision.
 
 
-#[derive(Debug, Default, Clone, PartialEq)]
-#[repr(packed)]
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
 struct PacketHeader {
     /// Every Message starts with 2 Bytes: 0xB5 0x62
     pub header: [u8; 2],
     /// Class field. The Class defines the basic subset of the message.
-    pub class: u8,
+    pub class: ClassField,
     pub id: u8,
     /// length is defined as being the length of the payload, only. It does not
     /// include Sync Chars, Length Field, Class, ID or CRC fields. 
     /// The number format of the length field is an
     /// unsigned 16-Bit integer in Little Endian Format.
-    pub length: u16,
+    //pub length: u16,
+    pub payload: Vec<u8>,
     pub ck_a: u8,
     pub ck_b: u8,
 }
 
-impl PacketHeader {
-    pub fn from(data: &[u8]) -> Result<Self> {
-        if data.len() <= HEADER_TOTAL_MIN_SIZE {
-            return Err(Error::MalformedHeader("Header size is too small".to_string()));
-        }
-        if data[0..2] != HEADER_SIGNATURE {
-            return Err(Error::MalformedHeader("Header signature is not of expected values".to_string()));
-        }
-        let length: usize = data[OFFSET_LENGTH] as usize + ((data[OFFSET_LENGTH+1] as u16) << 8) as usize;
-        Ok(Self {
-            header: data[0..2].try_into().unwrap(),
-            class: data[OFFSET_CLASS],
-            id: data[OFFSET_ID],
-            length: length as u16,
-            ck_a: data[OFFSET_PAYLOAD+length],
-            ck_b: data[OFFSET_PAYLOAD+length+1],
-        })
-    }
-}
-
-#[derive(Debug, Default, Clone, PartialEq)]
-struct Packet {
-    header: PacketHeader,
-    payload: Option<Vec<u8>>,
-}
-
-impl Packet {
-    fn from(data: &[u8]) -> Result<Packet> {
-        Ok(Self {
-            header: PacketHeader::from(data)?,
-            payload: Some(data[OFFSET_PAYLOAD..data.len()-2].to_vec()),
-        })
-    }
-}
-
-const HEADER_TOTAL_MIN_SIZE: usize = 8;
-const HEADER_MIN_SIZE: usize = 4;
+/// Ubx header is always 0x85, 0x62 and the first two bytes.
 const HEADER_SIGNATURE: [u8; 2] = [0x85, 0x62];
 
+impl PacketHeader {
+    pub fn from_bytes(input: &[u8]) -> Result<Self> {
+        let (input, header) = take(2usize)(input)?;
+        if header != HEADER_SIGNATURE {
+            return Err(Error::MalformedHeader("Header signature is not of expected values".to_string()));
+        }
+        let (input, class) = be_u8(input)?;
+        let (input, id) = be_u8(input)?;
+        let (input, length) = be_u8(input)?;
+        let (input, payload) = take(length)(input)?;
+        let (input, ck_a) = be_u8(input)?;
+        let (input, ck_b) = be_u8(input)?;
 
-const OFFSET_HEADER: usize = 0x0;
-const OFFSET_CLASS: usize = 0x2;
-const OFFSET_ID: usize = 0x3;
-const OFFSET_LENGTH: usize = 0x4;
-const OFFSET_PAYLOAD: usize = 0x6;
+        Ok(Self {
+            header: header.try_into().unwrap(),
+            class: ClassField::try_from(class)?,
+            id,
+            payload: payload.to_vec(),
+            ck_a,
+            ck_b,
+        })
+    }
+}
 
+
+#[derive(Debug, Deserialize, Serialize, PartialEq)]
+#[repr(u8)]
 pub enum ClassField {
+    UNK = 0x00,
     /// Navigation Results: Position, Speed, Time, Acc, Heading, DOP, SVs used
     NAV = 0x01,
     /// Receiver Manager Messages: Satellite Status, RTC Status
@@ -119,6 +142,25 @@ pub enum ClassField {
     ESF = 0x10, 
 }
 
+impl TryFrom<u8> for ClassField {
+    type Error = &'static str;
+
+    fn try_from(value: u8) -> std::result::Result<Self, &'static str> {
+        match value {
+            x if x == Self::NAV as u8 => Ok(Self::NAV),
+            x if x == Self::RXM as u8 => Ok(Self::RXM),
+            x if x == Self::INF as u8 => Ok(Self::INF),
+            x if x == Self::ACK as u8 => Ok(Self::ACK),
+            x if x == Self::CFG as u8 => Ok(Self::CFG),
+            x if x == Self::MON as u8 => Ok(Self::MON),
+            x if x == Self::AID as u8 => Ok(Self::AID),
+            x if x == Self::TIM as u8 => Ok(Self::TIM),
+            x if x == Self::ESF as u8 => Ok(Self::ESF),
+            _ => Err(format!("Invalid ubx class field: {value}!").as_str()),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -126,12 +168,12 @@ mod tests {
     #[test]
     fn test_packet_header_from() {
         let raw_bytes = [0xB5, 0x62, 0x05, 0x01, 0x02, 0x05, 0x01, 0x0, 0x0];
-        let header = PacketHeader::from(&raw_bytes).unwrap();
+        let header = PacketHeader::from_bytes(&raw_bytes).unwrap();
         assert_eq!(header, PacketHeader {
             header: [0xB5, 0x62],
             class: 0x05,
             id: 0x1,
-            length: 0x02,
+            payload: vec![0x05, 0x01],
             ck_a: 0x0,
             ck_b: 0x0,
         });
