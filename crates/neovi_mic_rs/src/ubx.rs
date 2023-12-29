@@ -2,8 +2,8 @@ use std::fmt;
 use serde::{Serialize, Deserialize};
 use nom::{
     bytes::complete::take,
-    number::complete::{be_u16, be_u8},
-    IResult,
+    number::complete::be_u8,
+    error::ParseError,
 };
 
 
@@ -30,38 +30,31 @@ impl From<&str> for Error {
     }
 }
 
-impl<E> From<nom::Err<E>::Error> for Error {
-    fn from(value: nom::Err<E>::Error) -> Self {
-        match value {
-            nom::Err::Error(e) => Self::MalformedHeader(e.into()),
-            nom::Err::Failure(e) => Self::MalformedHeader(e.into()),
-            nom::Err::Incomplete(e) => Self::MalformedHeader("Incomplete data".to_string()),
-        }
+impl From<String> for Error {
+    fn from(value: String) -> Self {
+        Self::MalformedHeader(value)
     }
 }
-/*
-impl<I> ParseError<I> for Error<I> {
-    fn from_error_kind(input: I, kind: ErrorKind) -> Self {
-      CustomError::Nom(input, kind)
-    }
-  
-    fn append(_: I, _: ErrorKind, other: Self) -> Self {
-      other
-    }
-  }
-*/
 
-/*
-impl<E> From<nom::Err<E>> for Error where std::string::String: From<E> {
+impl<I> ParseError<I> for Error {
+    fn from_error_kind(_input: I, _kind: nom::error::ErrorKind) -> Self {
+        Self::MalformedHeader("Nom error".to_string())
+    }
+
+    fn append(_input: I, _kind: nom::error::ErrorKind, other: Self) -> Self {
+        other
+    }
+}
+
+impl<E> From<nom::Err<E>> for Error {
     fn from(value: nom::Err<E>) -> Self {
         match value {
-            nom::Err::Error(e) => Self::MalformedHeader(e.into()),
-            nom::Err::Failure(e) => Self::MalformedHeader(e.into()),
-            nom::Err::Incomplete(e) => Self::MalformedHeader("Incomplete".to_string()),
+            nom::Err::Error(_) => Self::MalformedHeader("nom Error".to_string()),
+            nom::Err::Failure(_) => Self::MalformedHeader("nom Failure".to_string()),
+            nom::Err::Incomplete(_) => Self::MalformedHeader("Incomplete data".to_string()),
         }
     }
 }
-*/
 
 // 25.1 Structure Packing
 // Values are placed in an order that structure packing is not a problem. This means that 2Byte values shall start
@@ -95,16 +88,16 @@ const HEADER_SIGNATURE: [u8; 2] = [0x85, 0x62];
 
 impl PacketHeader {
     pub fn from_bytes(input: &[u8]) -> Result<Self> {
-        let (input, header) = take(2usize)(input)?;
+        let (input, header) = take::<usize, &[u8], Error>(2usize)(input)?;
         if header != HEADER_SIGNATURE {
             return Err(Error::MalformedHeader("Header signature is not of expected values".to_string()));
         }
-        let (input, class) = be_u8(input)?;
-        let (input, id) = be_u8(input)?;
-        let (input, length) = be_u8(input)?;
-        let (input, payload) = take(length)(input)?;
-        let (input, ck_a) = be_u8(input)?;
-        let (input, ck_b) = be_u8(input)?;
+        let (input, class) = be_u8::<&[u8], Error>(input)?;
+        let (input, id) = be_u8::<&[u8], Error>(input)?;
+        let (input, length) = be_u8::<&[u8], Error>(input)?;
+        let (input, payload) = take::<usize, &[u8], Error>(length as usize)(input)?;
+        let (input, ck_a) = be_u8::<&[u8], Error>(input)?;
+        let (input, ck_b) = be_u8::<&[u8], Error>(input)?;
 
         Ok(Self {
             header: header.try_into().unwrap(),
@@ -143,9 +136,9 @@ pub enum ClassField {
 }
 
 impl TryFrom<u8> for ClassField {
-    type Error = &'static str;
+    type Error = String;
 
-    fn try_from(value: u8) -> std::result::Result<Self, &'static str> {
+    fn try_from(value: u8) -> std::result::Result<Self, String> {
         match value {
             x if x == Self::NAV as u8 => Ok(Self::NAV),
             x if x == Self::RXM as u8 => Ok(Self::RXM),
@@ -156,7 +149,7 @@ impl TryFrom<u8> for ClassField {
             x if x == Self::AID as u8 => Ok(Self::AID),
             x if x == Self::TIM as u8 => Ok(Self::TIM),
             x if x == Self::ESF as u8 => Ok(Self::ESF),
-            _ => Err(format!("Invalid ubx class field: {value}!").as_str()),
+            _ => Err(format!("Invalid ubx class field: {value}!").to_string()),
         }
     }
 }
@@ -171,7 +164,7 @@ mod tests {
         let header = PacketHeader::from_bytes(&raw_bytes).unwrap();
         assert_eq!(header, PacketHeader {
             header: [0xB5, 0x62],
-            class: 0x05,
+            class: ClassField::try_from(0x05).unwrap(),
             id: 0x1,
             payload: vec![0x05, 0x01],
             ck_a: 0x0,
