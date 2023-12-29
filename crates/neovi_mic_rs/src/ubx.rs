@@ -83,8 +83,8 @@ struct PacketHeader {
     pub ck_b: u8,
 }
 
-/// Ubx header is always 0x85, 0x62 and the first two bytes.
-const HEADER_SIGNATURE: [u8; 2] = [0x85, 0x62];
+/// Ubx header is always 0xB5, 0x62 and the first two bytes.
+const HEADER_SIGNATURE: [u8; 2] = [0xB5, 0x62];
 
 impl PacketHeader {
     pub fn from_bytes(input: &[u8]) -> Result<Self> {
