@@ -1,11 +1,6 @@
+use nom::{bytes::complete::take, number::complete::be_u8, IResult};
+use serde::{Deserialize, Serialize};
 use std::fmt;
-use serde::{Serialize, Deserialize};
-use nom::{
-    bytes::complete::take,
-    number::complete::{be_u16, be_u8},
-    IResult,
-};
-
 
 #[derive(Debug)]
 pub enum Error {
@@ -24,44 +19,27 @@ impl fmt::Display for Error {
     }
 }
 
-impl From<&str> for Error {
-    fn from(value: &str) -> Self {
-        Self::MalformedHeader(value.to_string())
+impl From<String> for Error {
+    fn from(value: String) -> Self {
+        Self::MalformedHeader(value)
     }
 }
 
-impl<E> From<nom::Err<E>::Error> for Error {
-    fn from(value: nom::Err<E>::Error) -> Self {
+impl<T> From<nom::Err<T>> for Error {
+    fn from(value: nom::Err<T>) -> Self {
         match value {
-            nom::Err::Error(e) => Self::MalformedHeader(e.into()),
-            nom::Err::Failure(e) => Self::MalformedHeader(e.into()),
-            nom::Err::Incomplete(e) => Self::MalformedHeader("Incomplete data".to_string()),
+            nom::Err::Error(_) => {
+                Self::MalformedHeader("The parser had a recoverable error...".to_string())
+            }
+            nom::Err::Failure(_) => {
+                Self::MalformedHeader("The parser had an unrecoverable error".to_string())
+            }
+            nom::Err::Incomplete(_) => {
+                Self::MalformedHeader("There was not enough data".to_string())
+            }
         }
     }
 }
-/*
-impl<I> ParseError<I> for Error<I> {
-    fn from_error_kind(input: I, kind: ErrorKind) -> Self {
-      CustomError::Nom(input, kind)
-    }
-  
-    fn append(_: I, _: ErrorKind, other: Self) -> Self {
-      other
-    }
-  }
-*/
-
-/*
-impl<E> From<nom::Err<E>> for Error where std::string::String: From<E> {
-    fn from(value: nom::Err<E>) -> Self {
-        match value {
-            nom::Err::Error(e) => Self::MalformedHeader(e.into()),
-            nom::Err::Failure(e) => Self::MalformedHeader(e.into()),
-            nom::Err::Incomplete(e) => Self::MalformedHeader("Incomplete".to_string()),
-        }
-    }
-}
-*/
 
 // 25.1 Structure Packing
 // Values are placed in an order that structure packing is not a problem. This means that 2Byte values shall start
@@ -71,8 +49,6 @@ impl<E> From<nom::Err<E>> for Error where std::string::String: From<E> {
 
 // All multi-byte values are ordered in Little Endian format, unless otherwise indicated.
 // All floating point values are transmitted in IEEE754 single or double precision.
-
-
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 struct PacketHeader {
     /// Every Message starts with 2 Bytes: 0xB5 0x62
@@ -81,7 +57,7 @@ struct PacketHeader {
     pub class: ClassField,
     pub id: u8,
     /// length is defined as being the length of the payload, only. It does not
-    /// include Sync Chars, Length Field, Class, ID or CRC fields. 
+    /// include Sync Chars, Length Field, Class, ID or CRC fields.
     /// The number format of the length field is an
     /// unsigned 16-Bit integer in Little Endian Format.
     //pub length: u16,
@@ -91,41 +67,59 @@ struct PacketHeader {
 }
 
 /// Ubx header is always 0x85, 0x62 and the first two bytes.
-const HEADER_SIGNATURE: [u8; 2] = [0x85, 0x62];
+const HEADER_SIGNATURE: [u8; 2] = [0xB5, 0x62];
 
 impl PacketHeader {
+    /// Take bytes and convert to [u8; 2]
+    fn be_u8(input: &[u8]) -> IResult<&[u8], u8> {
+        let (input, value) = be_u8(input)?;
+        Ok((input, value.try_into().unwrap()))
+    }
+
+    /// Take length bytes and convert to Vec<u8>
+    fn take_len(input: &[u8], length: usize) -> IResult<&[u8], Vec<u8>> {
+        let (input, value) = take(length)(input)?;
+        Ok((input, value.to_vec()))
+    }
+
+    // Take 2 bytes and convert to [u8; 2]
+    fn take_2(input: &[u8]) -> IResult<&[u8], [u8; 2]> {
+        let (input, value) = take(2usize)(input)?;
+        Ok((input, value.try_into().unwrap()))
+    }
+
     pub fn from_bytes(input: &[u8]) -> Result<Self> {
-        let (input, header) = take(2usize)(input)?;
+        let (input, header) = Self::take_2(input)?;
         if header != HEADER_SIGNATURE {
-            return Err(Error::MalformedHeader("Header signature is not of expected values".to_string()));
+            return Err(Error::MalformedHeader(
+                "Header signature is not of expected values".to_string(),
+            ));
         }
-        let (input, class) = be_u8(input)?;
-        let (input, id) = be_u8(input)?;
-        let (input, length) = be_u8(input)?;
-        let (input, payload) = take(length)(input)?;
-        let (input, ck_a) = be_u8(input)?;
-        let (input, ck_b) = be_u8(input)?;
+        let (input, class) = Self::be_u8(input)?;
+        let (input, id) = Self::be_u8(input)?;
+        let (input, length) = Self::be_u8(input)?;
+        let (input, payload) = Self::take_len(input, length as usize)?;
+        let (input, ck_a) = Self::be_u8(input)?;
+        let (input, ck_b) = Self::be_u8(input)?;
 
         Ok(Self {
             header: header.try_into().unwrap(),
             class: ClassField::try_from(class)?,
             id,
-            payload: payload.to_vec(),
+            payload: payload,
             ck_a,
             ck_b,
         })
     }
 }
 
-
 #[derive(Debug, Deserialize, Serialize, PartialEq)]
 #[repr(u8)]
 pub enum ClassField {
-    UNK = 0x00,
     /// Navigation Results: Position, Speed, Time, Acc, Heading, DOP, SVs used
     NAV = 0x01,
     /// Receiver Manager Messages: Satellite Status, RTC Status
-    RXM = 0x02, 
+    RXM = 0x02,
     /// Information Messages: Printf-Style Messages, with IDs such as Error, Warning, Notice
     INF = 0x04,
     /// Ack/Nack Messages: as replies to CFG Input Messages
@@ -137,15 +131,15 @@ pub enum ClassField {
     /// Timing Messages: Timepulse Output, Timemark Results
     AID = 0x0B,
     /// AssistNow Aiding Messages: Ephemeris, Almanac, other A-GPS data input
-    TIM = 0x0D, 
+    TIM = 0x0D,
     /// External Sensor Fusion Messages: External sensor measurements and status information
-    ESF = 0x10, 
+    ESF = 0x10,
 }
 
 impl TryFrom<u8> for ClassField {
-    type Error = &'static str;
+    type Error = String;
 
-    fn try_from(value: u8) -> std::result::Result<Self, &'static str> {
+    fn try_from(value: u8) -> std::result::Result<Self, String> {
         match value {
             x if x == Self::NAV as u8 => Ok(Self::NAV),
             x if x == Self::RXM as u8 => Ok(Self::RXM),
@@ -156,7 +150,10 @@ impl TryFrom<u8> for ClassField {
             x if x == Self::AID as u8 => Ok(Self::AID),
             x if x == Self::TIM as u8 => Ok(Self::TIM),
             x if x == Self::ESF as u8 => Ok(Self::ESF),
-            _ => Err(format!("Invalid ubx class field: {value}!").as_str()),
+            _ => {
+                let msg = format!("Invalid ubx class field: {value}!");
+                Err(msg)
+            }
         }
     }
 }
@@ -166,16 +163,71 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_packet_header_from() {
-        let raw_bytes = [0xB5, 0x62, 0x05, 0x01, 0x02, 0x05, 0x01, 0x0, 0x0];
+    fn verifiy_header_signature() {
+        assert_eq!(HEADER_SIGNATURE[0], 0xB5);
+        assert_eq!(HEADER_SIGNATURE[1], 0x62);
+    }
+
+    #[test]
+    fn test_valid_packet_header_from_bytes() {
+        let raw_bytes = [
+            HEADER_SIGNATURE[0],
+            HEADER_SIGNATURE[1],
+            ClassField::ACK as u8,
+            0x01, // id
+            0x02, // payload length
+            0x05, // payload
+            0x01, // payload
+            0x0,  // ck_a
+            0x0,  // ck_b
+        ];
         let header = PacketHeader::from_bytes(&raw_bytes).unwrap();
-        assert_eq!(header, PacketHeader {
-            header: [0xB5, 0x62],
-            class: 0x05,
-            id: 0x1,
-            payload: vec![0x05, 0x01],
-            ck_a: 0x0,
-            ck_b: 0x0,
-        });
+        assert_eq!(
+            header,
+            PacketHeader {
+                header: HEADER_SIGNATURE,
+                class: ClassField::ACK,
+                id: 0x1,
+                payload: vec![0x05, 0x01],
+                ck_a: 0x0,
+                ck_b: 0x0,
+            }
+        );
+    }
+
+    #[test]
+    fn test_invalid_packet_header_from_bytes() {
+        let raw_bytes = [0xA5, 0x62, 0x05, 0x01, 0x02, 0x05, 0x01, 0x0, 0x0];
+        assert!(PacketHeader::from_bytes(&raw_bytes).is_err());
+    }
+
+    #[test]
+    fn test_class_field_values() {
+        // Make sure all valid values pass
+        assert_eq!(ClassField::NAV as u8, 0x01);
+        assert_eq!(ClassField::RXM as u8, 0x02);
+        assert_eq!(ClassField::INF as u8, 0x04);
+        assert_eq!(ClassField::ACK as u8, 0x05);
+        assert_eq!(ClassField::CFG as u8, 0x06);
+        assert_eq!(ClassField::MON as u8, 0x0A);
+        assert_eq!(ClassField::AID as u8, 0x0B);
+        assert_eq!(ClassField::TIM as u8, 0x0D);
+        assert_eq!(ClassField::ESF as u8, 0x10);
+
+        // Make sure all valid values pass
+        ClassField::try_from(0x01).unwrap();
+        ClassField::try_from(0x02).unwrap();
+        ClassField::try_from(0x04).unwrap();
+        ClassField::try_from(0x05).unwrap();
+        ClassField::try_from(0x06).unwrap();
+        ClassField::try_from(0x0A).unwrap();
+        ClassField::try_from(0x0B).unwrap();
+        ClassField::try_from(0x0D).unwrap();
+        ClassField::try_from(0x10).unwrap();
+
+        // Make sure all invalid values fail
+        for i in 0x11..0xFF {
+            assert!(ClassField::try_from(i).is_err());
+        }
     }
 }

@@ -24,3 +24,6 @@ ACTION=="add", SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_interface", \
 ACTION=="add", SUBSYSTEM=="drivers", \
         ENV{DEVPATH}=="/bus/usb-serial/drivers/ftdi_sio", \
         ATTR{new_id}="093c 0901"
+
+# U-Blox neoVI MIC2
+KERNEL=="tty[A-Z]*", GROUP="uucp", MODE="0666"
