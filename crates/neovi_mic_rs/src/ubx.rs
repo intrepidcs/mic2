@@ -66,7 +66,7 @@ struct PacketHeader {
     pub ck_b: u8,
 }
 
-/// Ubx header is always 0x85, 0x62 and the first two bytes.
+/// Ubx header is always 0xB5, 0x62 and the first two bytes.
 const HEADER_SIGNATURE: [u8; 2] = [0xB5, 0x62];
 
 impl PacketHeader {
@@ -160,12 +160,31 @@ impl TryFrom<u8> for ClassField {
 
 #[cfg(test)]
 mod tests {
+    use nom::AsBytes;
+
     use super::*;
 
+    fn generate_header() -> PacketHeader {
+        let raw_bytes = [0xB5, 0x62, 0x05, 0x01, 0x02, 0x05, 0x01, 0x25, 0x6D];
+        let header = PacketHeader::from_bytes(&raw_bytes).unwrap();
+        assert_eq!(
+            header,
+            PacketHeader {
+                header: [0xB5, 0x62],
+                class: ClassField::try_from(0x05).unwrap(),
+                id: 0x1,
+                payload: vec![0x05, 0x01],
+                ck_a: 0x25,
+                ck_b: 0x6D,
+            }
+        );
+        assert_eq!(raw_bytes, header.data(true).as_bytes());
+        header
+    }
+
     #[test]
-    fn verifiy_header_signature() {
-        assert_eq!(HEADER_SIGNATURE[0], 0xB5);
-        assert_eq!(HEADER_SIGNATURE[1], 0x62);
+    fn test_packet_header() {
+        generate_header();
     }
 
     #[test]
@@ -195,13 +214,36 @@ mod tests {
         );
     }
 
+    fn test_checksum() {
+        let header = generate_header();
+        let checksum = header.checksum();
+        assert_eq!(header.ck_a, checksum.0);
+        assert_eq!(header.ck_b, checksum.1);
+        header.verify_checksum().unwrap();
+    }
+
     #[test]
+    fn test_bad_checksum() {
+        let mut header = generate_header();
+        // lets corrupt the checksum
+        header.ck_a = 0xDE;
+        header.ck_b = 0xAD;
+        assert!(header.verify_checksum().is_err());
+    }
+    
     fn test_invalid_packet_header_from_bytes() {
         let raw_bytes = [0xA5, 0x62, 0x05, 0x01, 0x02, 0x05, 0x01, 0x0, 0x0];
         assert!(PacketHeader::from_bytes(&raw_bytes).is_err());
     }
 
     #[test]
+    fn test_bad_data_checksum() {
+        let mut header = generate_header();
+        // lets corrupt the data
+        header.payload = vec![0,1,2,3,4,5,6,7];
+        assert!(header.verify_checksum().is_err());
+    }
+
     fn test_class_field_values() {
         // Make sure all valid values pass
         assert_eq!(ClassField::NAV as u8, 0x01);
