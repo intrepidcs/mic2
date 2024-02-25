@@ -270,6 +270,7 @@ mod tests {
         );
     }
 
+    #[test]
     fn test_checksum() {
         let header = generate_header();
         let checksum = header.checksum();
@@ -287,6 +288,7 @@ mod tests {
         assert!(header.verify_checksum().is_err());
     }
     
+    #[test]
     fn test_invalid_packet_header_from_bytes() {
         let raw_bytes = [0xA5, 0x62, 0x05, 0x01, 0x02, 0x05, 0x01, 0x0, 0x0];
         assert!(PacketHeader::from_bytes(&raw_bytes).is_err());
@@ -300,6 +302,7 @@ mod tests {
         assert!(header.verify_checksum().is_err());
     }
 
+    #[test]
     fn test_class_field_values() {
         // Make sure all valid values pass
         assert_eq!(ClassField::NAV as u8, 0x01);
