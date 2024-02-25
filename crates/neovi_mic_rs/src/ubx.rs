@@ -5,6 +5,7 @@ use std::fmt;
 #[derive(Debug)]
 pub enum Error {
     MalformedHeader(String),
+    InvalidChecksum,
 }
 
 impl std::error::Error for Error {}
@@ -15,6 +16,7 @@ impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match &self {
             Self::MalformedHeader(s) => write!(f, "Malformed GPS ubx header: {:#?}", s),
+            Self::InvalidChecksum => write!(f, "Invalid Checksum"),
         }
     }
 }
@@ -62,7 +64,13 @@ struct PacketHeader {
     /// unsigned 16-Bit integer in Little Endian Format.
     //pub length: u16,
     pub payload: Vec<u8>,
+    /// CK_A and CK_B is a 16 Bit checksum. 
+    /// The checksum algorithm used is the 8-Bit Fletcher Algorithm, 
+    /// which is used in the TCP standard (RFC 1145).
     pub ck_a: u8,
+    /// CK_A and CK_B is a 16 Bit checksum. 
+    /// The checksum algorithm used is the 8-Bit Fletcher Algorithm, 
+    /// which is used in the TCP standard (RFC 1145).
     pub ck_b: u8,
 }
 
@@ -100,7 +108,7 @@ impl PacketHeader {
         let (input, length) = Self::be_u8(input)?;
         let (input, payload) = Self::take_len(input, length as usize)?;
         let (input, ck_a) = Self::be_u8(input)?;
-        let (input, ck_b) = Self::be_u8(input)?;
+        let (_input, ck_b) = Self::be_u8(input)?;
 
         Ok(Self {
             header: header.try_into().unwrap(),
@@ -111,9 +119,57 @@ impl PacketHeader {
             ck_b,
         })
     }
+
+    /// Convert the packet data to raw bytes, includes checksum.
+    pub fn data(&self, include_checksum: bool) -> Vec<u8> {
+        let mut bytes = vec![
+            self.header[0],
+            self.header[1],
+            self.class as u8,
+            self.id,
+            self.payload.len() as u8,
+        ];
+        // add the payload bytes individually, I don't know of an
+        // easy way to append a vec to another vec init above.
+        for byte in &self.payload {
+            bytes.push(*byte);
+        }
+        // include the checksum in the bytes, this is useful for
+        // calculating the checksum, for example.
+        if include_checksum {
+            bytes.push(self.ck_a);
+            bytes.push(self.ck_b);
+        }
+        bytes
+    }
+
+    /// Calculate the checksum and return it as a tuple (ck_a, ck_b).
+    fn checksum(&self) -> (u8, u8) {
+        // The checksum is calculated over the packet, starting and 
+        // including the CLASS field, up until, but excluding, the
+        // Checksum Field
+        let bytes= self.data(false);
+        let mut ck_a: u8 = 0;
+        let mut ck_b: u8 = 0;
+        for byte in bytes {
+            ck_a = ck_a.wrapping_add(byte);
+            ck_b = ck_b.wrapping_add(ck_a);
+        }
+        (ck_a, ck_b)
+    }
+
+    fn verify_checksum(&self) -> Result<()> {
+        let checksum = self.checksum();
+        if checksum.0 != self.ck_a || checksum.1 != self.ck_b {
+            return Err(Error::InvalidChecksum);
+        }
+        Ok(())
+    }
 }
 
-#[derive(Debug, Deserialize, Serialize, PartialEq)]
+/// 24 UBX Class IDs
+/// A Class is a grouping of messages which are related to each other.
+#[derive(Debug, Copy, Clone, Deserialize, Serialize, PartialEq)]
 #[repr(u8)]
 pub enum ClassField {
     /// Navigation Results: Position, Speed, Time, Acc, Heading, DOP, SVs used
