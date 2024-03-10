@@ -1,3 +1,5 @@
+use std::{str::Utf8Error, time::Duration};
+
 use crate::types::{Error, Result};
 use chrono::NaiveTime;
 use serialport::{self, ErrorKind, SerialPortInfo, SerialPortType};
@@ -8,6 +10,12 @@ impl From<serialport::Error> for Error {
             ErrorKind::NoDevice => Error::InvalidDevice("No Serial Ports found!".into()),
             _ => Error::SerialError(value),
         }
+    }
+}
+
+impl From<Utf8Error> for Error {
+    fn from(value: Utf8Error) -> Self {
+        Error::IOError(std::io::ErrorKind::InvalidData)
     }
 }
 
@@ -82,21 +90,38 @@ impl GPSDevice {
     }
 
     pub fn open(&self) -> Result<()> {
-        let port = serialport::new(&self.port_name, self.baud_rate)
+        *self.port_handle.borrow_mut() = Some(serialport::new(&self.port_name, self.baud_rate)
             .timeout(Duration::from_millis(10))
             .open()
-            .map_err(Error::SerialError)?;
-        *self.port_handle.borrow_mut() = Some(port);
+            .map_err(Error::SerialError)
+            .expect(format!("Failed to open port {}.", &self.port_name).as_str()));
         let mut buffer: Vec<u8> = vec![0; 1000];
         loop {
-            match port.read(buffer.as_mut_slice()) {
-                Ok(size) => {
-                    if size > 0 {
-                        String::from_utf8(buffer[..size].to_vec())?.strip_suffix("\r\n").unwrap();
+            match &mut *self.port_handle.borrow_mut() {
+                Some(port) => {
+                    match port.read(buffer.as_mut_slice()) {
+                        Ok(size) => {
+                            if size > 0 {
+                                let line = String::from_utf8(buffer[..size].to_vec()).unwrap();
+                                let line = line.strip_suffix("\r\n").unwrap();
+                                println!("{line}");
+                            }
+                        },
+                        Err(e) => todo!(),
                     }
                 },
-                Err(e) => return Err(Error::SerialError(e)),
+                None => todo!(),
+            };
+            /*
+            match *self.port_handle.borrow_mut().ok().read(buffer.as_mut_slice()) {
+                Ok(size) => {
+                    if size > 0 {
+                        String::from_utf8(buffer[..size].to_vec()).unwrap().strip_suffix("\r\n").unwrap();
+                    }
+                },
+                Err(e) => todo!(),
             }
+            */
         }
         Ok(())
     }
