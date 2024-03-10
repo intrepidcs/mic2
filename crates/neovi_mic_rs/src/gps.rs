@@ -11,31 +11,7 @@ impl From<serialport::Error> for Error {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
-pub struct GPSSV {
-    /// satellite PRN number
-    pub prn_number: Option<u16>,
-    /// Elevation, in degrees, 90° maximum
-    pub elevation: Option<f32>,
-    /// Azimuth, degrees from True North, 000° through 359°
-    pub azimuth: Option<f32>,
-    /// SNR (dB), 0-99
-    pub snr: Option<f32>,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct GPSData {
-    /// $GPGSV Field 3 - Total number of SVs visible
-    pub sv_visible: u16,
-    /// $GPGSV Field 4 - 7
-    pub svs: Option<Vec<GPSSV>>,
-    pub latitude: Option<f64>,
-    pub longitude: Option<f64>,
-    pub timestamp: Option<NaiveTime>,
-    pub valid: Option<bool>,
-}
-
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug)]
 pub struct GPSDevice {
     /// Port name string similar to "/dev/ttyACM0"
     pub port_name: String,
@@ -45,42 +21,50 @@ pub struct GPSDevice {
     pub pid: u16,
     /// baudrate of the port, typically 115200
     baud_rate: u32,
+    /// Serial port handle with interior mutability
+    port_handle: std::cell::RefCell<Option<Box<dyn serialport::SerialPort>>>,
 }
+
+impl Drop for GPSDevice {
+    fn drop(&mut self) {
+        println!("Closing port {}", self.port_name);
+        let _ = self.close();
+    }
+}
+
+impl PartialEq for GPSDevice {
+    fn eq(&self, other: &Self) -> bool {
+        self.port_name == other.port_name
+            && self.vid == other.vid
+            && self.pid == other.pid
+    }
+}
+
+const UBLOX_VID: u16 = 0x1546;
+const UBLOX_PIDS: [u16; 2] = [0x01A8, 0x01A7];
 
 impl GPSDevice {
     /// todo!()
     pub fn find_all() -> Result<Vec<Self>> {
-        let ports: Vec<SerialPortInfo> = serialport::available_ports()?;
-        let ports: Vec<SerialPortInfo> = ports
+        let gps_devices: Vec<Self> = serialport::available_ports()?
             .into_iter()
-            .filter(|p| match &p.port_type {
+            .filter_map(|p| match &p.port_type {
                 SerialPortType::UsbPort(upi) => {
-                    if upi.vid == 0x1546 && upi.pid == 0x01A8 {
-                        true
-                    } else if upi.vid == 0x1546 && upi.pid == 0x01A7 {
-                        true
-                    } else {
-                        false
+                    if upi.vid == UBLOX_VID && UBLOX_PIDS.contains(&upi.pid) {
+                        Some(Self {
+                            port_name: p.port_name,
+                            vid: upi.vid,
+                            pid: upi.pid,
+                            baud_rate: 115200,
+                            port_handle: std::cell::RefCell::new(None),
+                        })
+                    }else {
+                        None
                     }
                 }
-                _ => false,
+                _ => None,
             })
             .collect();
-        let mut gps_devices = Vec::new();
-        for port in &ports {
-            let upi = match &port.port_type {
-                SerialPortType::UsbPort(upi) => upi,
-                _ => {
-                    panic!("BUG! We shouldn't be here, we should have filtered out anything else.")
-                }
-            };
-            gps_devices.push(Self {
-                port_name: port.port_name.to_string(),
-                vid: upi.vid,
-                pid: upi.pid,
-                baud_rate: 115200,
-            });
-        }
         Ok(gps_devices)
     }
 
@@ -96,10 +80,11 @@ impl GPSDevice {
         }
     }
 
-    pub fn start(&self) -> Result<()> {
-        let port = serialport::new(&self.port_name, self.baud_rate);
-        let asdf = port.open()?;
+    pub fn open(&self) -> Result<()> {
+        Ok(())
+    }
 
+    pub fn close(&self) -> Result<()> {
         Ok(())
     }
 }
