@@ -19,7 +19,7 @@ pub struct GPSDevice {
     pub vid: u16,
     /// USB product ID of the GPS
     pub pid: u16,
-    /// baudrate of the port, typically 115200
+    /// baudrate of the port, typically UBLOX_DEFAULT_BAUD
     baud_rate: u32,
     /// Serial port handle with interior mutability
     port_handle: std::cell::RefCell<Option<Box<dyn serialport::SerialPort>>>,
@@ -42,6 +42,7 @@ impl PartialEq for GPSDevice {
 
 const UBLOX_VID: u16 = 0x1546;
 const UBLOX_PIDS: [u16; 2] = [0x01A8, 0x01A7];
+const UBLOX_DEFAULT_BAUD: u32 = 115200;
 
 impl GPSDevice {
     /// todo!()
@@ -55,7 +56,7 @@ impl GPSDevice {
                             port_name: p.port_name,
                             vid: upi.vid,
                             pid: upi.pid,
-                            baud_rate: 115200,
+                            baud_rate: UBLOX_DEFAULT_BAUD,
                             port_handle: std::cell::RefCell::new(None),
                         })
                     }else {
