@@ -82,6 +82,22 @@ impl GPSDevice {
     }
 
     pub fn open(&self) -> Result<()> {
+        let port = serialport::new(&self.port_name, self.baud_rate)
+            .timeout(Duration::from_millis(10))
+            .open()
+            .map_err(Error::SerialError)?;
+        *self.port_handle.borrow_mut() = Some(port);
+        let mut buffer: Vec<u8> = vec![0; 1000];
+        loop {
+            match port.read(buffer.as_mut_slice()) {
+                Ok(size) => {
+                    if size > 0 {
+                        String::from_utf8(buffer[..size].to_vec())?.strip_suffix("\r\n").unwrap();
+                    }
+                },
+                Err(e) => return Err(Error::SerialError(e)),
+            }
+        }
         Ok(())
     }
 
