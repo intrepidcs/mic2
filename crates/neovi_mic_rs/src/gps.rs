@@ -13,11 +13,12 @@ impl From<serialport::Error> for Error {
     }
 }
 
-impl From<Utf8Error> for Error {
-    fn from(value: Utf8Error) -> Self {
-        Error::IOError(std::io::ErrorKind::InvalidData)
-    }
-}
+
+// impl From<Utf8Error> for Error {
+//     fn from(_: Utf8Error) -> Self {
+//         Error::IOError(std::io::ErrorKind::InvalidData)
+//     }
+// }
 
 #[derive(Debug)]
 pub struct GPSDevice {
@@ -90,38 +91,42 @@ impl GPSDevice {
     }
 
     pub fn open(&self) -> Result<()> {
+        // Create the serial port and open it.
         *self.port_handle.borrow_mut() = Some(serialport::new(&self.port_name, self.baud_rate)
-            .timeout(Duration::from_millis(10))
+            .timeout(Duration::from_millis(100))
             .open()
             .map_err(Error::SerialError)
             .expect(format!("Failed to open port {}.", &self.port_name).as_str()));
+        // Create a buffer and read the port.
         let mut buffer: Vec<u8> = vec![0; 1000];
         loop {
             match &mut *self.port_handle.borrow_mut() {
                 Some(port) => {
                     match port.read(buffer.as_mut_slice()) {
+                        // This reader has reached its "end of file" and will likely no longer be able to produce bytes.
+                        Ok(size) if size == 0 => break,
+                        // Successfully read some bytes
                         Ok(size) => {
-                            if size > 0 {
-                                let line = String::from_utf8(buffer[..size].to_vec()).unwrap();
-                                let line = line.strip_suffix("\r\n").unwrap();
-                                println!("{line}");
-                            }
+                            let line = String::from_utf8(buffer[..size].to_vec()).unwrap();
+                            let line = line.strip_suffix("\r\n").unwrap();
+                            println!("{line}");
                         },
-                        Err(e) => todo!(),
+                        // Nothing to read, try again later
+                        Err(e) if e.kind() == std::io::ErrorKind::TimedOut => {},
+                        // An error of the ErrorKind::Interrupted kind is non-fatal and the read operation should be retried if there is nothing else to do.
+                        Err(e) if e.kind() == std::io::ErrorKind::Interrupted => {}
+                        // Fatal, this will happen when device is disconnected.
+                        Err(e) if e.kind() == std::io::ErrorKind::BrokenPipe => {
+                            break;
+                        },
+                        // Uncaught errors, panic!
+                        Err(e) => {
+                            panic!("Error: {e}");
+                        },
                     }
                 },
                 None => todo!(),
             };
-            /*
-            match *self.port_handle.borrow_mut().ok().read(buffer.as_mut_slice()) {
-                Ok(size) => {
-                    if size > 0 {
-                        String::from_utf8(buffer[..size].to_vec()).unwrap().strip_suffix("\r\n").unwrap();
-                    }
-                },
-                Err(e) => todo!(),
-            }
-            */
         }
         Ok(())
     }
@@ -152,28 +157,7 @@ mod tests {
     #[test]
     fn test() {
         let gps_device: GPSDevice = GPSDevice::find_first().expect("Expected at least one device!");
-        let mut port = serialport::new(&gps_device.port_name, gps_device.baud_rate)
-            .timeout(Duration::from_millis(10))
-            .open()
-            .expect("Failed to open port");
-        let mut serial_buf: Vec<u8> = vec![0; 1000];
-        println!(
-            "Receiving data on {} at {} baud:",
-            &gps_device.port_name, &gps_device.baud_rate
-        );
-        loop {
-            match port.read(serial_buf.as_mut_slice()) {
-                Ok(t) => {
-                    let mut parser = NmeaParser::new();
-                    let nmea_string = String::from_utf8(serial_buf[..t].to_vec()).unwrap();
-                    let nmea_string = nmea_string.strip_suffix("\r\n").unwrap();
-                    println!("{}", nmea_string);
-                    //let nmea_sentence = parser.parse_sentence(nmea_string);
-                    //println!("{:?}", nmea_sentence)
-                }
-                Err(ref e) if e.kind() == std::io::ErrorKind::TimedOut => (),
-                Err(e) => eprintln!("{:?}", e),
-            }
-        }
+        gps_device.open().unwrap();
+        gps_device.close().unwrap();
     }
 }
