@@ -38,17 +38,26 @@ impl NMEASentence {
             .split(',')
             .map(|v| v.split('*').nth(0).unwrap_or(v)) // strip * from the end
             .collect();
-        let result = match &items[0][3..] {
-            "GST" => Ok(NMEASentenceType::GST(GstData::from_nmea_str(&self.inner)?)),
-            "GSA" => Ok(NMEASentenceType::GSA(GsaData::from_nmea_str(&self.inner)?)),
-            "GSV" => Ok(NMEASentenceType::GSV(GsvDataCollection::from_nmea_str(&self.inner)?)),
+        println!("DEBUG: {}", &items[0][0..]);
+        println!("DEBUG: {:?}", &items);
+        let result = match &items[0][0..] {
+            "$GPGST" => Ok(NMEASentenceType::GST(GstData::from_nmea_str(&self.inner)?)),
+            "$GPGSA" => Ok(NMEASentenceType::GSA(GsaData::from_nmea_str(&self.inner)?)),
+            "$GPGSV" => Ok(NMEASentenceType::GSV(GsvDataCollection::from_nmea_str(&self.inner)?)),
             // "GLL" => Ok(NMEASentenceType::GLL(GllData::from_nmea_str(&self.inner)?)),
             // "GGA" => Ok(NMEASentenceType::GGA(GgaData::from_nmea_str(&self.inner)?)),
             // "VTG" => Ok(NMEASentenceType::VTG(VtgData::from_nmea_str(&self.inner)?)),
             // "RMC" => Ok(NMEASentenceType::RMC(RmcData::from_nmea_str(&self.inner)?)),
-            // "PUBX00" => Ok(NMEASentenceType::PUBX00(Pubx00Data::from_nmea_str(&self.inner)?)),
-            // "PUBX03" => Ok(NMEASentenceType::PUBX03(Pubx03Data::from_nmea_str(&self.inner)?)),
-            // "PUBX04" => Ok(NMEASentenceType::PUBX04(Pubx04Data::from_nmea_str(&self.inner)?)),
+            // "GNTXT" => Ok(NMEASentenceType::GNTXT(GNTXTData::from_nmea_str(&self.inner)?)),
+            "$PUBX" => match items[1] {
+                "00" => {
+                    println!("OK"); 
+                    Ok(NMEASentenceType::PUBX00(Pubx00Data::from_nmea_str(&self.inner)?))
+                },
+                //"03" => Ok(NMEASentenceType::PUBX03(Pubx03Data::from_nmea_str(&self.inner)?)),
+                //"04" => Ok(NMEASentenceType::PUBX04(Pubx04Data::from_nmea_str(&self.inner)?)),
+                _ => Err(NMEAError::InvalidData(self.inner.to_owned())),
+            },
             _ => Err(NMEAError::InvalidData(self.inner.to_owned())),
         };
         result
@@ -79,6 +88,14 @@ mod test {
     fn test_nmea_sentence_gsv() {
         let sentence =
             NMEASentence::new("$GPGSV,3,1,11,03,03,111,00,04,15,270,00,06,01,010,00,13,06,292,00*74 $GPGSV,3,2,11,14,25,170,00,16,57,208,39,18,67,296,40,19,40,246,00*74 $GPGSV,3,3,11,22,42,067,42,24,14,311,43,27,05,244,00,,,,*4D").unwrap();
+        let data = sentence.data().unwrap();
+        println!("{data:#?}");
+    }
+
+    #[test]
+    fn test_pubx00_sentence() {
+        let sentence =
+            NMEASentence::new("$PUBX,00,025554.00,0000.00000,N,00000.00000,E,0.000,NF,5311696,3755936,0.000,0.00,0.000,,99.99,99.99,99.99,0,0,0*28").unwrap();
         let data = sentence.data().unwrap();
         println!("{data:#?}");
     }

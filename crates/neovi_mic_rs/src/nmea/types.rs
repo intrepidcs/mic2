@@ -754,9 +754,105 @@ pub struct RmcData {
     pub variation: Option<f64>,
 }
 
+// 21.2 UBX,00
 #[derive(Clone, Debug, PartialEq)]
 pub struct Pubx00Data {
-    raw: String,
+    // UTC Time, Current time
+    pub current_time: Option<NaiveTime>,
+    /// Latitude. See [GpsDMS] for more details
+    pub latitude: GpsDMS,
+    /// N/S Indicator, N=north or S=south
+    pub n: char,
+    /// Longitude. See [GpsDMS] for more details
+    pub longitude: GpsDMS,
+    /// E/W Indicator, E=east or W=west 
+    pub e: char,
+    /// Altitude above user datum ellipsoid (m)
+    pub altitude: f64,
+    /// Navigation Status
+    ///     NF No Fix
+    ///     DR Dead reckoning only solution
+    ///     G2 Stand alone 2D solution
+    ///     G3 Stand alone 3D solution
+    ///     D2 Differential 2D solution
+    ///     D3 Differential 3D solution
+    ///     RK Combined GPS + dead reckoning solution
+    ///     TT Time only solution
+    pub nav_stat: String,
+    /// Horizontal accuracy estimate
+    pub h_acc: f64,
+    /// Vertical accuracy estimate
+    pub v_acc: f64,
+    /// Speed over ground (km/h)
+    pub sog_kmh: f64,
+    /// Course over ground (degrees)
+    pub cog: f64,
+    /// Vertical velocity, positive = downward (m/s)
+    pub vvel: f64,
+    /// Age of most recent DGPS corrections, empty = none available (s)
+    pub age_c: Option<f64>,
+    /// HDOP, Horizontal Dilution of Precision
+    pub hdop: f64,
+    /// VDOP, Vertical dilution of precision
+    pub vdop: f64,
+    /// TDOP, Time dilution of precision
+    pub tdop: f64,
+    /// Number of GPS satellites used in solution
+    pub gps_sat_used: u8,
+    /// Number of GLONASS satellites used in solution
+    pub glonass_sat_used: u8,
+    /// Number of Beidou satellites used in solution
+    pub dr_sat_used: u8,
+    /// Checksum
+    pub checksum: u8,
+}
+
+impl GpsDataFromNmeaString for Pubx00Data {
+    type Output = Self;
+
+    fn from_nmea_str(data: impl Into<String>) -> Result<Self::Output, NMEAError> {
+        // All fields including the checksum
+        const FIELD_COUNT: usize = 21;
+        let data: String = data.into();
+        // Example: $PUBX,00,025554.00,0000.00000,N,00000.00000,E,0.000,NF,5311696,3755936,0.000,0.00,0.000,,99.99,99.99,99.99,0,0,0*28
+        let items = nmea_str_to_vec(&data);
+        let result = match &items[0][1..] {
+            "PUBX" => {
+                if items.len() < FIELD_COUNT {
+                    Err(NMEAError::InvalidData(
+                        format!("PUBX00 sentence is not {FIELD_COUNT} fields in length, got {}", items.len()).to_string(),
+                    ))
+                } else {
+                    Ok(Pubx00Data {
+                        current_time: NaiveTime::parse_from_str(&items[2], "%H%M%S.%f").ok(),
+                        latitude: GpsDMS::from_nmea_str(items[3])?,
+                        n: items[4].chars().next().unwrap_or_default(),
+                        longitude: GpsDMS::from_nmea_str(items[5])?,
+                        e: items[6].chars().next().unwrap_or_default(),
+                        altitude: items[7].parse::<f64>()?,
+                        nav_stat: items[8].to_string(),
+                        h_acc: items[9].parse::<f64>()?,
+                        v_acc: items[10].parse::<f64>()?,
+                        sog_kmh: items[11].parse::<f64>()?,
+                        cog: items[12].parse::<f64>()?,
+                        vvel: items[13].parse::<f64>()?,
+                        age_c: items[14].parse::<f64>().ok(),
+                        hdop: items[15].parse::<f64>()?,
+                        vdop: items[16].parse::<f64>()?,
+                        tdop: items[17].parse::<f64>()?,
+                        gps_sat_used: items[18].parse::<u8>()?,
+                        glonass_sat_used: items[19].parse::<u8>()?,
+                        dr_sat_used: items[20].parse::<u8>()?,
+                        checksum: 0, //items[21].parse::<u8>()?,
+                    })
+                }
+            }
+            _ => Err(NMEAError::InvalidData(
+                format!("PUBX raw value {} is invalid", &items[0][1..]).to_string(),
+            )),
+        }?;
+        Ok(result)
+    }
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -791,6 +887,7 @@ pub enum NMEASentenceType {
     VTG(VtgData),
     /// Recommended Minimum Navigation Information
     RMC(RmcData),
+    GNTXT(String),
     /// u-blox Lat/Long Position Data
     PUBX00(Pubx00Data),
     /// u-blox Satellite Status
@@ -811,6 +908,7 @@ impl fmt::Display for NMEASentenceType {
             Self::GGA(_) => write!(f, "GGA"),
             Self::VTG(_) => write!(f, "VTG"),
             Self::RMC(_) => write!(f, "RMC"),
+            Self::GNTXT(_) => write!(f, "GNTXT"),
             Self::PUBX00(_) => write!(f, "PUBX00"),
             Self::PUBX03(_) => write!(f, "PUBX03"),
             Self::PUBX04(_) => write!(f, "PUBX04"),
@@ -878,4 +976,6 @@ mod tests {
         assert!((dms.to_decimal() - 38.8897).abs() < f64::EPSILON, "{} is not approximately equal to {}", dms.to_decimal(), 38.8897);
         */
     }
+
+    
 }

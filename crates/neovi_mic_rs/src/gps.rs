@@ -163,9 +163,9 @@ impl GPSDevice {
             let mut buffer: Vec<u8> = vec![0; 1000];
 
             // setup the port
-            // Enable UBX messages UBX,00 UBX,03 UBX,04 UBX,05 UBX,06
+            // Enable UBX messages UBX,00 UBX,03 UBX,04
             // 19 NMEA Messages Overview
-            for i in [0u8, 3, 4, 5, 6] {
+            for i in [0u8, 3, 4] {
                 let cfg_msg_pkt = ubx::PacketHeader::new(ubx::ClassField::CFG, 0x01, vec![0xF1, i, 0, 0, 0, 1, 0, 0], true);
                 let data = cfg_msg_pkt.data(true);
                 port.write_all(data.as_slice()).unwrap();
