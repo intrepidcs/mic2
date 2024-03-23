@@ -52,7 +52,7 @@ impl<T> From<nom::Err<T>> for Error {
 // All multi-byte values are ordered in Little Endian format, unless otherwise indicated.
 // All floating point values are transmitted in IEEE754 single or double precision.
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
-struct PacketHeader {
+pub struct PacketHeader {
     /// Every Message starts with 2 Bytes: 0xB5 0x62
     pub header: [u8; 2],
     /// Class field. The Class defines the basic subset of the message.
@@ -106,6 +106,8 @@ impl PacketHeader {
         let (input, class) = Self::be_u8(input)?;
         let (input, id) = Self::be_u8(input)?;
         let (input, length) = Self::be_u8(input)?;
+        let (input, length2) = Self::be_u8(input)?;
+        let length: u16 = (length2 as u16) << 8 | length as u16;
         let (input, payload) = Self::take_len(input, length as usize)?;
         let (input, ck_a) = Self::be_u8(input)?;
         let (_input, ck_b) = Self::be_u8(input)?;
@@ -120,14 +122,33 @@ impl PacketHeader {
         })
     }
 
+    pub fn new(class: ClassField, id: u8, payload: Vec<u8>, gen_checksum: bool) -> Self {
+        let mut packet = Self {
+            header: HEADER_SIGNATURE,
+            class,
+            id,
+            payload,
+            ck_a: 0,
+            ck_b: 0,
+        };
+        if gen_checksum {
+            let (ck_a, ck_b) = packet.checksum();
+            packet.ck_a = ck_a;
+            packet.ck_b = ck_b;
+        }
+        packet
+    }
+
     /// Convert the packet data to raw bytes, includes checksum.
     pub fn data(&self, include_checksum: bool) -> Vec<u8> {
+        let payload_size = self.payload.len() as u16;
         let mut bytes = vec![
             self.header[0],
             self.header[1],
             self.class as u8,
             self.id,
-            self.payload.len() as u8,
+            (payload_size & 0xFF) as u8,
+            (payload_size >> 8) as u8,
         ];
         // add the payload bytes individually, I don't know of an
         // easy way to append a vec to another vec init above.
@@ -151,8 +172,9 @@ impl PacketHeader {
         let bytes= self.data(false);
         let mut ck_a: u8 = 0;
         let mut ck_b: u8 = 0;
-        for byte in bytes {
-            ck_a = ck_a.wrapping_add(byte);
+        // Don't calculate the checksum over the header
+        for byte in bytes[2..].iter() {
+            ck_a = ck_a.wrapping_add(*byte);
             ck_b = ck_b.wrapping_add(ck_a);
         }
         (ck_a, ck_b)
@@ -221,17 +243,18 @@ mod tests {
     use super::*;
 
     fn generate_header() -> PacketHeader {
-        let raw_bytes = [0xB5, 0x62, 0x05, 0x01, 0x02, 0x05, 0x01, 0x25, 0x6D];
+        let raw_bytes = vec![0xB5, 0x62, 0x06, 0x01, 0x08, 0x00, 0xF1, 0x00, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x02, 0x31];
+            
         let header = PacketHeader::from_bytes(&raw_bytes).unwrap();
         assert_eq!(
             header,
             PacketHeader {
                 header: [0xB5, 0x62],
-                class: ClassField::try_from(0x05).unwrap(),
+                class: ClassField::try_from(0x06).unwrap(),
                 id: 0x1,
-                payload: vec![0x05, 0x01],
-                ck_a: 0x25,
-                ck_b: 0x6D,
+                payload: vec![0xF1, 0x00, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00],
+                ck_a: 0x02,
+                ck_b: 0x31,
             }
         );
         assert_eq!(raw_bytes, header.data(true).as_bytes());
