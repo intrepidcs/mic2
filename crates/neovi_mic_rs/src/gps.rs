@@ -75,7 +75,9 @@ impl GPSDevice {
                             shutdown_thread: std::sync::Arc::new(
                                 std::sync::atomic::AtomicBool::new(false),
                             ),
-                            gps_info: std::sync::Arc::new(std::sync::RwLock::new(GpsInfo::default())),
+                            gps_info: std::sync::Arc::new(std::sync::RwLock::new(
+                                GpsInfo::default(),
+                            )),
                         })
                     } else {
                         None
@@ -120,13 +122,36 @@ impl GPSDevice {
             let mut buffer: Vec<u8> = vec![0; 1000];
 
             // setup the port
+
+            // 32.10.29.1 Reset receiver / Clear backup data structures
+            // Payload: Hot Start (0x00), Controlled software reset (0x01), reserved1 (0x00)
+            port.write_all(
+                ubx::PacketHeader::new(ubx::ClassField::CFG, 0x04, vec![0x0, 0x01, 0], true)
+                    .data(true)
+                    .as_slice(),
+            )
+            .unwrap();
+
+            // Disable all NEMA messages
+            // 31.1.9 Messages overview
+            for i in vec![
+                0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0D, 0x0E, 0x0F,
+                0x40, 0x41, 0x42, 0x43, 0x44,
+            ] {
+                port.write_all(
+                    ubx::PacketHeader::new(ubx::ClassField::CFG, 0x01, vec![0xF0, i, 0], true)
+                        .data(true)
+                        .as_slice(),
+                )
+                .unwrap();
+            }
             // Enable UBX messages UBX,00 UBX,03 UBX,04
             // 19 NMEA Messages Overview
             for i in [0u8, 3, 4] {
                 let cfg_msg_pkt = ubx::PacketHeader::new(
                     ubx::ClassField::CFG,
                     0x01,
-                    vec![0xF1, i, 0, 0, 0, 1, 0, 0],
+                    vec![0xF1, i, 1], //0, 0, 0, 1, 0, 0],
                     true,
                 );
                 let data = cfg_msg_pkt.data(true);
@@ -171,7 +196,7 @@ impl GPSDevice {
                         };
                         // Parse the packet
                         match &packet {
-                            GPSPacket::NMEA(nmea) => { match nmea {
+                            GPSPacket::NMEA(nmea) => match nmea {
                                 NMEASentenceType::PUBX00(data) => {
                                     gps_info.write().unwrap().update_from_nmea_sentence(nmea);
                                 }
@@ -182,10 +207,14 @@ impl GPSDevice {
                                     gps_info.write().unwrap().update_from_nmea_sentence(nmea);
                                 }
                                 _ => panic!("Unsupported sentence: {nmea:?}"),
-                            }},
+                            },
                             GPSPacket::Ubx(packet) => println!("Received: {:#?}", packet),
-                            GPSPacket::Unsupported(data, e) => println!("Unsupported: {data:?} {e}"),
-                            GPSPacket::NMEAUnsupported(data, e) => println!("Unsupported: {data:?} {e:?}"),
+                            GPSPacket::Unsupported(data, e) => {
+                                println!("Unsupported: {data:?} {e}")
+                            }
+                            GPSPacket::NMEAUnsupported(data, e) => {
+                                println!("Unsupported: {data:?} {e:?}")
+                            }
                         }
                         //println!("GPSInfo: {:?}", gps_info.read().unwrap());
                     }
@@ -254,6 +283,5 @@ mod tests {
             println!("{info:#?}");
         }
         gps_device.close().unwrap();
-        
     }
 }

@@ -1,7 +1,7 @@
 ///! NMEA data types
 // https://gpsd.gitlab.io/gpsd/NMEA.html
 
-use chrono::{NaiveDate, NaiveDateTime, NaiveTime};
+use chrono::{Datelike, NaiveDate, NaiveDateTime, NaiveTime};
 use std::{
     fmt,
     num::{ParseFloatError, ParseIntError},
@@ -1115,7 +1115,11 @@ impl GpsInfo {
     pub fn update_from_nmea_sentence(&mut self, sentence: &NMEASentenceType) {
         match &sentence {
             NMEASentenceType::PUBX00(data) => {
-                self.current_time = None; // TODO
+                // We can only get the current time and not the date from this sentence. Lets fill it in with Local time from the host
+                // Until we get a date from the GPS.
+                if self.current_time.is_none() && data.current_time.is_some() {
+                    self.current_time = Some(chrono::Utc::now().date_naive().and_time(data.current_time.unwrap()));
+                }
                 self.latitude = Some((data.latitude, data.n));
                 self.longitude = Some((data.longitude, data.e));
                 self.altitude = Some(data.altitude);
@@ -1134,6 +1138,12 @@ impl GpsInfo {
                 self.satellites = data.satellites.clone();
             },
             NMEASentenceType::PUBX04(data) => {
+                match (data.current_date, data.current_time) {
+                    (Some(date), Some(time)) => {
+                        self.current_time = Some(date.and_time(time));
+                    },
+                    _ => {},
+                }
                 self.clock_bias = Some(data.clock_bias);
                 self.clock_drift = Some(data.clock_drift);
                 self.timepulse_granularity = Some(data.timepulse_granularity);
