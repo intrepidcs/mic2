@@ -3,7 +3,7 @@ use std::{borrow::BorrowMut, time::Duration};
 use crate::{
     nmea::{
         sentence::NMEASentence,
-        types::{GpsInfo, NMEAError, NMEASentenceType},
+        types::{GpsDMS, GpsInfo, GpsNavigationStatus, NMEAError, NMEASentenceType},
     },
     types::{Error, Result},
     ubx,
@@ -236,6 +236,7 @@ impl GPSDevice {
         Ok(())
     }
 
+    /// Close the GPS connection.
     pub fn close(&self) -> Result<()> {
         // Nothing to do if already closed
         if self.thread.borrow().is_none() {
@@ -250,8 +251,17 @@ impl GPSDevice {
         Ok(())
     }
 
+    /// Returns the current GPS Info. See [GpsInfo] for more info. Port should be open first.
     pub fn get_info(&self) -> GpsInfo {
         self.gps_info.read().unwrap().clone()
+    }
+
+    /// Returns true if the GPS has a fix. False if it does not.
+    pub fn has_lock(&self) -> bool {
+        match &self.gps_info.read().unwrap().nav_stat {
+            Some(GpsNavigationStatus::NoFix) => false,
+            _ => true,
+        }
     }
 }
 
