@@ -1,7 +1,7 @@
 ///! NMEA data types
 // https://gpsd.gitlab.io/gpsd/NMEA.html
 
-use chrono::NaiveTime;
+use chrono::{NaiveDate, NaiveDateTime, NaiveTime};
 use std::{
     fmt,
     num::{ParseFloatError, ParseIntError},
@@ -242,7 +242,7 @@ pub enum GgaQualityIndicator {
 /// GPS Degrees Minutes Seconds
 /// 
 /// This object is dumb, it doesn't have any awareness of North/South or East/West or Negative numbers.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Copy, PartialEq)]
 pub struct GpsDMS {
     pub degrees: u16,
     pub minutes: u8,
@@ -754,8 +754,45 @@ pub struct RmcData {
     pub variation: Option<f64>,
 }
 
+#[derive(Clone, Debug, Copy, PartialEq)]
+pub enum GpsNavigationStatus {
+    /// "NF" No Fix
+    NoFix,
+    /// "DR" Dead reckoning only solution
+    DeadReckoningOnly,
+    /// "G2" Stand alone 2D solution
+    StandAlone2D,
+    /// "G3" Stand alone 3D solution
+    StandAlone3D,
+    /// "D2" Differential 2D solution
+    Differential2D,
+    /// "D3" Differential 3D solution
+    Differential3D,
+    /// "RK" Combined GPS + dead reckoning solution
+    CombinedRKGPSDeadReckoning,
+    /// "TT" Time only solution
+    TimeOnly,
+}
+
+impl GpsNavigationStatus {
+    fn from_str(s: &str) -> Result<GpsNavigationStatus, NMEAError> {
+        match s {
+            "NF" => Ok(GpsNavigationStatus::NoFix),
+            "DR" => Ok(GpsNavigationStatus::DeadReckoningOnly),
+            "G2" => Ok(GpsNavigationStatus::StandAlone2D),
+            "G3" => Ok(GpsNavigationStatus::StandAlone3D),
+            "D2" => Ok(GpsNavigationStatus::Differential2D),
+            "D3" => Ok(GpsNavigationStatus::Differential3D),
+            "RK" => Ok(GpsNavigationStatus::CombinedRKGPSDeadReckoning),
+            "TT" => Ok(GpsNavigationStatus::TimeOnly),
+            _ => Err(NMEAError::InvalidData(format!(
+                "GpsNavigationStatus::from_str({s}) is not a valid value"
+            )))
+        }
+    }
+}
 // 21.2 UBX,00
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Copy, PartialEq)]
 pub struct Pubx00Data {
     // UTC Time, Current time
     pub current_time: Option<NaiveTime>,
@@ -769,16 +806,8 @@ pub struct Pubx00Data {
     pub e: char,
     /// Altitude above user datum ellipsoid (m)
     pub altitude: f64,
-    /// Navigation Status
-    ///     NF No Fix
-    ///     DR Dead reckoning only solution
-    ///     G2 Stand alone 2D solution
-    ///     G3 Stand alone 3D solution
-    ///     D2 Differential 2D solution
-    ///     D3 Differential 3D solution
-    ///     RK Combined GPS + dead reckoning solution
-    ///     TT Time only solution
-    pub nav_stat: String,
+    /// Navigation Status. See [GpsNavigationStatus] for more details
+    pub nav_stat: GpsNavigationStatus,
     /// Horizontal accuracy estimate
     pub h_acc: f64,
     /// Vertical accuracy estimate
@@ -803,8 +832,6 @@ pub struct Pubx00Data {
     pub glonass_sat_used: u8,
     /// Number of Beidou satellites used in solution
     pub dr_sat_used: u8,
-    /// Checksum
-    pub checksum: u8,
 }
 
 impl GpsDataFromNmeaString for Pubx00Data {
@@ -830,7 +857,7 @@ impl GpsDataFromNmeaString for Pubx00Data {
                         longitude: GpsDMS::from_nmea_str(items[5])?,
                         e: items[6].chars().next().unwrap_or_default(),
                         altitude: items[7].parse::<f64>()?,
-                        nav_stat: items[8].to_string(),
+                        nav_stat: GpsNavigationStatus::from_str(items[8])?,
                         h_acc: items[9].parse::<f64>()?,
                         v_acc: items[10].parse::<f64>()?,
                         sog_kmh: items[11].parse::<f64>()?,
@@ -843,7 +870,6 @@ impl GpsDataFromNmeaString for Pubx00Data {
                         gps_sat_used: items[18].parse::<u8>()?,
                         glonass_sat_used: items[19].parse::<u8>()?,
                         dr_sat_used: items[20].parse::<u8>()?,
-                        checksum: 0, //items[21].parse::<u8>()?,
                     })
                 }
             }
@@ -855,14 +881,140 @@ impl GpsDataFromNmeaString for Pubx00Data {
     }
 }
 
+#[derive(Clone, Debug, Copy, PartialEq)]
+pub struct Pubx03SatData {
+    /// Satellite PRN number
+    pub prn: u16,
+    /// Satellite status
+    ///     - Not used
+    ///     U Used in solution
+    ///     e Ephemeris available, but not used for navigation
+    pub status: bool,
+    /// Satellite azimuth, range 000..359 (degrees)
+    pub azimuth: Option<u16>,
+    /// Satellite elevation, range 00..90 (degrees)
+    pub elevation: Option<u16>,
+    /// Signal to noise ratio, range 00..55 (dBHz)
+    pub snr: u8,
+    /// Satellite carrier lock time, range 00..64
+    ///     0 = code lock only
+    ///     64 = lock for 64 seconds or more
+    pub lock_time: u8,
+}
 #[derive(Clone, Debug, PartialEq)]
 pub struct Pubx03Data {
-    raw: String,
+    pub satellites: Vec<Pubx03SatData>,
 }
+
+impl GpsDataFromNmeaString for Pubx03Data {
+    type Output = Self;
+
+    fn from_nmea_str(data: impl Into<String>) -> Result<Self::Output, NMEAError> {
+        // All fields
+        const FIELD_COUNT: usize = 3;
+        let data: String = data.into();
+        // Example: "$PUBX,03,00*1C\r\n"
+        let items = nmea_str_to_vec(&data);
+        let result = match &items[0][1..] {
+            "PUBX" => {
+                if items.len() < FIELD_COUNT {
+                    Err(NMEAError::InvalidData(
+                        format!("PUBX03 sentence is not {FIELD_COUNT} fields in length, got {}", items.len()).to_string(),
+                    ))
+                } else {
+                    let sat_count = items[2].parse::<usize>()?;
+                    const SAT_DATA_FIELD_COUNT: usize = 6;
+                    let actual_field_count = FIELD_COUNT + sat_count * SAT_DATA_FIELD_COUNT;
+                    if items.len() < actual_field_count {
+                        return Err(NMEAError::InvalidData(
+                            format!("PUBX03 sentence is not {FIELD_COUNT} fields in length, got {}", items.len()).to_string(),
+                        ));
+                    }
+                    let mut satellites = Vec::with_capacity(sat_count);
+                    for i in 0..sat_count {
+                        let offset = 3 + i * SAT_DATA_FIELD_COUNT;
+                        satellites.push(Pubx03SatData {
+                            prn: items[offset].parse::<u16>()?,
+                            status: items[offset+1].chars().next().unwrap_or_default() == 'U',
+                            azimuth: items[offset+2].parse::<u16>().ok(),
+                            elevation: items[offset+3].parse::<u16>().ok(),
+                            snr: items[offset+4].parse::<u8>()?,
+                            lock_time: items[offset+5].parse::<u8>()?,
+                        })
+                    }
+                    Ok(Pubx03Data {
+                        satellites: satellites
+                    })
+                }
+            }
+            _ => Err(NMEAError::InvalidData(
+                format!("PUBX raw value {} is invalid", &items[0][1..]).to_string(),
+            )),
+        }?;
+        Ok(result)
+    }
+}
+
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Pubx04Data {
-    raw: String,
+    /// UTC Time, Current time in hour, minutes, seconds (hhmmss.sss)
+    pub current_time: Option<NaiveTime>,
+    /// UTC Date, day, month, year format (ddmmyy)
+    pub current_date: Option<NaiveDate>,
+    /// UTC Time of Week (s)
+    pub time_of_week: f64,
+    /// UTC week number, continues beyond 1023
+    pub week_number: Option<u16>,
+    /// Leap seconds
+    /// Before FW 7.01: reserved. FW 7.01 and above: Leap
+    /// seconds, The number is marked with a ‘D’ if the
+    /// value is the firmware default value (15 for FW 7.00).
+    /// If the value is not marked it has been received from
+    /// a satellite.
+    pub leap_seconds: Option<(u8, bool)>,
+    /// Receiver clock bias (ns)
+    pub clock_bias: f64,
+    /// Receiver clock drift (ns/s)
+    pub clock_drift: f64,
+    /// Timepulse Granularity, The quantization error of the Timepulse pin (ns)
+    pub timepulse_granularity: f64,
+}
+
+impl GpsDataFromNmeaString for Pubx04Data {
+    type Output = Self;
+
+    fn from_nmea_str(data: impl Into<String>) -> Result<Self::Output, NMEAError> {
+        // All fields including the checksum
+        const FIELD_COUNT: usize = 10;
+        let data: String = data.into();
+        // Example: $PUBX,04,073731.00,091202,113851.00,1196,15D,1930035,-2660.664,43,*3C
+        let items = nmea_str_to_vec(&data);
+        let result = match &items[0][1..] {
+            "PUBX" => {
+                if items.len() < FIELD_COUNT {
+                    Err(NMEAError::InvalidData(
+                        format!("PUBX04 sentence is not {FIELD_COUNT} fields in length, got {}", items.len()).to_string(),
+                    ))
+                } else {
+                    Ok(Pubx04Data {
+                        current_time: NaiveTime::parse_from_str(&items[2], "%H%M%S.%f").ok(),
+                        current_date: NaiveDate::parse_from_str(&items[3], "%d%m%y").ok(),
+                        time_of_week: items[4].parse::<f64>()?,
+                        week_number: items[5].parse::<u16>().ok(),
+                        leap_seconds: Some((items[6].replace('D', "").parse::<u8>()?, items[6].contains('D'))),
+                        clock_bias: items[7].parse::<f64>()?,
+                        clock_drift: items[8].parse::<f64>()?,
+                        timepulse_granularity: items[9].parse::<f64>()?,
+                    })
+                }
+            }
+            _ => Err(NMEAError::InvalidData(
+                format!("PUBX raw value {} is invalid", &items[0][1..]).to_string(),
+            )),
+        }?;
+        Ok(result)
+    }
 }
 
 /// Most GPS sensors emit only RMC, GSA, GSV, GLL, VTG, and (rarely) ZDA.
@@ -913,6 +1065,80 @@ impl fmt::Display for NMEASentenceType {
             Self::PUBX03(_) => write!(f, "PUBX03"),
             Self::PUBX04(_) => write!(f, "PUBX04"),
             Self::Unsupported(s) => write!(f, "{}", s),
+        }
+    }
+}
+
+type GpsSatInfo = Pubx03SatData;
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct GpsInfo {
+    // UTC Time, Current time
+    pub current_time: Option<NaiveDateTime>,
+    /// Latitude. See [GpsDMS] for more details. N/S Indicator, N=north or S=south
+    pub latitude: Option<(GpsDMS, char)>,
+    /// Longitude. See [GpsDMS] for more details. E/W Indicator, E=east or W=west 
+    pub longitude: Option<(GpsDMS, char)>,
+    /// Altitude above user datum ellipsoid (m)
+    pub altitude: Option<f64>,
+    /// Navigation Status. See [GpsNavigationStatus] for more details
+    pub nav_stat: Option<GpsNavigationStatus>,
+    /// Horizontal accuracy estimate
+    pub h_acc: Option<f64>,
+    /// Vertical accuracy estimate
+    pub v_acc: Option<f64>,
+    /// Speed over ground (km/h)
+    pub sog_kmh: Option<f64>,
+    /// Course over ground (degrees)
+    pub cog: Option<f64>,
+    /// Vertical velocity, positive = downward (m/s)
+    pub vvel: Option<f64>,
+    /// Age of most recent DGPS corrections, empty = none available (s)
+    pub age_c: Option<f64>,
+    /// HDOP, Horizontal Dilution of Precision
+    pub hdop: Option<f64>,
+    /// VDOP, Vertical dilution of precision
+    pub vdop: Option<f64>,
+    /// TDOP, Time dilution of precision
+    pub tdop: Option<f64>,
+    /// Number of GPS/GLONASS/Beidou satellites
+    pub satellites: Vec<GpsSatInfo>,
+    /// Receiver clock bias (ns)
+    pub clock_bias: Option<f64>,
+    /// Receiver clock drift (ns/s)
+    pub clock_drift: Option<f64>,
+    /// Timepulse Granularity, The quantization error of the Timepulse pin (ns)
+    pub timepulse_granularity: Option<f64>,
+}
+
+impl GpsInfo {
+    pub fn update_from_nmea_sentence(&mut self, sentence: &NMEASentenceType) {
+        match &sentence {
+            NMEASentenceType::PUBX00(data) => {
+                self.current_time = None; // TODO
+                self.latitude = Some((data.latitude, data.n));
+                self.longitude = Some((data.longitude, data.e));
+                self.altitude = Some(data.altitude);
+                self.nav_stat = Some(data.nav_stat);
+                self.h_acc = Some(data.h_acc);
+                self.v_acc = Some(data.v_acc);
+                self.sog_kmh = Some(data.sog_kmh);
+                self.cog = Some(data.cog);
+                self.vvel = Some(data.vvel);
+                self.age_c = data.age_c;
+                self.hdop = Some(data.hdop);
+                self.vdop = Some(data.vdop);
+                self.tdop = Some(data.tdop);
+            },
+            NMEASentenceType::PUBX03(data) => {
+                self.satellites = data.satellites.clone();
+            },
+            NMEASentenceType::PUBX04(data) => {
+                self.clock_bias = Some(data.clock_bias);
+                self.clock_drift = Some(data.clock_drift);
+                self.timepulse_granularity = Some(data.timepulse_granularity);
+            },
+            _ => { panic!("Unsupported sentence: {sentence:?}") }
         }
     }
 }

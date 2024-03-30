@@ -1,14 +1,13 @@
-use std::{
-    borrow::BorrowMut,
-    fmt,
-    time::Duration,
-};
+use std::{borrow::BorrowMut, time::Duration};
 
 use crate::{
+    nmea::{
+        sentence::NMEASentence,
+        types::{GpsInfo, NMEAError, NMEASentenceType},
+    },
     types::{Error, Result},
     ubx,
 };
-use chrono::NaiveTime;
 use serialport::{self, ErrorKind, SerialPortType};
 
 impl From<serialport::Error> for Error {
@@ -20,58 +19,13 @@ impl From<serialport::Error> for Error {
     }
 }
 
-#[derive(Debug, PartialEq)]
-pub struct GPSLocation {
-    pub latitude: f64,
-    pub longitude: f64,
-    pub altitude: f64,
-}
-
-impl GPSLocation {
-    pub fn new(latitude: f64, longitude: f64, altitude: f64) -> Self {
-        Self {
-            latitude,
-            longitude,
-            altitude,
-        }
-    }
-}
-
-impl fmt::Display for GPSLocation {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "Lat: {}, Long: {}, Alt: {}",
-            self.latitude, self.longitude, self.altitude
-        )
-    }
-}
-
-#[derive(Debug, PartialEq)]
-pub struct GPSLock {
-    pub locked: bool,
-    pub accuracy: f64,
-}
-
-impl GPSLock {
-    pub fn new(locked: bool, accuracy: f64) -> Self {
-        Self { locked, accuracy }
-    }
-}
-
-impl fmt::Display for GPSLock {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "Locked: {}, Accuracy: {}", self.locked, self.accuracy)
-    }
-}
-
 #[derive(Debug)]
-pub struct GPSData {
-    pub location: GPSLocation,
-    pub lock: GPSLock,
-    pub time: NaiveTime,
+enum GPSPacket {
+    Ubx(ubx::PacketHeader),
+    NMEA(NMEASentenceType),
+    NMEAUnsupported(String, NMEAError),
+    Unsupported(Vec<u8>, String),
 }
-
 #[derive(Debug)]
 pub struct GPSDevice {
     /// Port name string similar to "/dev/ttyACM0"
@@ -84,6 +38,7 @@ pub struct GPSDevice {
     baud_rate: u32,
     thread: std::cell::RefCell<Option<std::thread::JoinHandle<()>>>,
     shutdown_thread: std::sync::Arc<std::sync::atomic::AtomicBool>,
+    gps_info: std::sync::Arc<std::sync::RwLock<GpsInfo>>,
 }
 
 impl Drop for GPSDevice {
@@ -120,6 +75,7 @@ impl GPSDevice {
                             shutdown_thread: std::sync::Arc::new(
                                 std::sync::atomic::AtomicBool::new(false),
                             ),
+                            gps_info: std::sync::Arc::new(std::sync::RwLock::new(GpsInfo::default())),
                         })
                     } else {
                         None
@@ -152,6 +108,7 @@ impl GPSDevice {
         let port_name = self.port_name.clone();
         let baud_rate = self.baud_rate;
         let shutdown_thread = self.shutdown_thread.clone();
+        let gps_info = self.gps_info.clone();
         *self.thread.borrow_mut() = Some(std::thread::spawn(move || {
             // Open the port
             println!("Opening port {}", port_name);
@@ -166,40 +123,71 @@ impl GPSDevice {
             // Enable UBX messages UBX,00 UBX,03 UBX,04
             // 19 NMEA Messages Overview
             for i in [0u8, 3, 4] {
-                let cfg_msg_pkt = ubx::PacketHeader::new(ubx::ClassField::CFG, 0x01, vec![0xF1, i, 0, 0, 0, 1, 0, 0], true);
+                let cfg_msg_pkt = ubx::PacketHeader::new(
+                    ubx::ClassField::CFG,
+                    0x01,
+                    vec![0xF1, i, 0, 0, 0, 1, 0, 0],
+                    true,
+                );
                 let data = cfg_msg_pkt.data(true);
                 port.write_all(data.as_slice()).unwrap();
                 println!("Sent CFG message: {:02X?}", data);
+                // TODO: Verify we got ACK messages from the GPS
             }
-            
+
             loop {
                 // Detect if we should shutdown
                 if shutdown_thread.load(std::sync::atomic::Ordering::Relaxed) {
                     break;
                 }
-
                 // read the port
                 match port.read(buffer.as_mut_slice()) {
                     // This reader has reached its "end of file" and will likely no longer be able to produce bytes.
                     Ok(size) if size == 0 => break,
                     // Successfully read some bytes
                     Ok(size) => {
-                        if buffer[0] == 0xB5 {
-                            let packet = ubx::PacketHeader::from_bytes(&buffer[..size]).unwrap();
-                            let data = buffer[..size].to_vec();
-                            println!("Received: {size}\t{:02X?} {packet:?}", data);
-                            //println!("{packet:?}");
-                        } else {
-                            let line = match String::from_utf8(buffer[..size].to_vec()) {
-                                Ok(l) => l,
-                                Err(e) => {
-                                    println!("Error: {e} {:02X?}", buffer);
-                                    format!("Received: {size}\t{:02X?}", buffer).to_string()
+                        let data = &buffer[..size];
+                        // TODO: Clean this up, a lot of this should be moved to GPSPacket
+                        // Check if this is a UBX message
+                        let packet = match ubx::PacketHeader::from_bytes(&data) {
+                            Ok(packet_header) => GPSPacket::Ubx(packet_header),
+                            Err(_e) => {
+                                // This is not a UBX message, more than likely its a NMEA statement
+                                // TODO: Clean this up, a lot of this should be moved to NMEASentence
+                                match String::from_utf8(data.to_vec()) {
+                                    Ok(nmea_str) => match NMEASentence::from_bytes(&data) {
+                                        Ok(ns) => match ns.data() {
+                                            Ok(nst) => GPSPacket::NMEA(nst),
+                                            Err(e) => GPSPacket::NMEAUnsupported(nmea_str, e),
+                                        },
+                                        Err(e) => GPSPacket::NMEAUnsupported(nmea_str, e),
+                                    },
+                                    Err(e) => {
+                                        // We failed to convert the bytes to a string
+                                        GPSPacket::Unsupported(data.to_vec(), e.to_string())
+                                    }
                                 }
-                            };
-                            let line = line.strip_suffix("\r\n").unwrap_or_default();
-                            println!("Received: {size}\t{line}");
+                            }
+                        };
+                        // Parse the packet
+                        match &packet {
+                            GPSPacket::NMEA(nmea) => { match nmea {
+                                NMEASentenceType::PUBX00(data) => {
+                                    gps_info.write().unwrap().update_from_nmea_sentence(nmea);
+                                }
+                                NMEASentenceType::PUBX03(data) => {
+                                    gps_info.write().unwrap().update_from_nmea_sentence(nmea);
+                                }
+                                NMEASentenceType::PUBX04(data) => {
+                                    gps_info.write().unwrap().update_from_nmea_sentence(nmea);
+                                }
+                                _ => panic!("Unsupported sentence: {nmea:?}"),
+                            }},
+                            GPSPacket::Ubx(packet) => println!("Received: {:#?}", packet),
+                            GPSPacket::Unsupported(data, e) => println!("Unsupported: {data:?} {e}"),
+                            GPSPacket::NMEAUnsupported(data, e) => println!("Unsupported: {data:?} {e:?}"),
                         }
+                        //println!("GPSInfo: {:?}", gps_info.read().unwrap());
                     }
                     // Nothing to read, try again later
                     Err(e) if e.kind() == std::io::ErrorKind::TimedOut => {}
@@ -232,6 +220,10 @@ impl GPSDevice {
         self.thread.borrow_mut().take().unwrap().join().unwrap();
         Ok(())
     }
+
+    pub fn get_info(&self) -> GpsInfo {
+        self.gps_info.read().unwrap().clone()
+    }
 }
 
 #[cfg(test)]
@@ -256,7 +248,12 @@ mod tests {
     fn test() {
         let gps_device: GPSDevice = GPSDevice::find_first().expect("Expected at least one device!");
         gps_device.open().unwrap();
-        std::thread::sleep(Duration::from_millis(10000));
+        for _ in 0..10 {
+            std::thread::sleep(Duration::from_millis(1000));
+            let info = gps_device.get_info();
+            println!("{info:#?}");
+        }
         gps_device.close().unwrap();
+        
     }
 }

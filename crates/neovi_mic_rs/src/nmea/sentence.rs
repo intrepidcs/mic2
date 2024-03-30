@@ -30,6 +30,18 @@ impl NMEASentence {
         })
     }
 
+    /// Creates a new [NMEASentence] from a byte array. Expects the byte array to be able to convert
+    /// into a UTF-8 String.
+    pub fn from_bytes(bytes: &[u8]) -> Result<Self, NMEAError> {
+        let inner = match String::from_utf8(bytes.to_vec()) {
+            Ok(s) => s,
+            Err(_) => return Err(NMEAError::InvalidData("Failed to Create NMEA sentence from bytes".into())),
+        };
+        Ok(Self {
+            inner,
+        })
+    }
+
     /// Returns the NMEASentenceType for parsing, NMEAError on error.
     pub fn data(&self) -> Result<NMEASentenceType, NMEAError> {
         // Split the raw data into a vec
@@ -38,8 +50,6 @@ impl NMEASentence {
             .split(',')
             .map(|v| v.split('*').nth(0).unwrap_or(v)) // strip * from the end
             .collect();
-        println!("DEBUG: {}", &items[0][0..]);
-        println!("DEBUG: {:?}", &items);
         let result = match &items[0][0..] {
             "$GPGST" => Ok(NMEASentenceType::GST(GstData::from_nmea_str(&self.inner)?)),
             "$GPGSA" => Ok(NMEASentenceType::GSA(GsaData::from_nmea_str(&self.inner)?)),
@@ -50,12 +60,9 @@ impl NMEASentence {
             // "RMC" => Ok(NMEASentenceType::RMC(RmcData::from_nmea_str(&self.inner)?)),
             // "GNTXT" => Ok(NMEASentenceType::GNTXT(GNTXTData::from_nmea_str(&self.inner)?)),
             "$PUBX" => match items[1] {
-                "00" => {
-                    println!("OK"); 
-                    Ok(NMEASentenceType::PUBX00(Pubx00Data::from_nmea_str(&self.inner)?))
-                },
-                //"03" => Ok(NMEASentenceType::PUBX03(Pubx03Data::from_nmea_str(&self.inner)?)),
-                //"04" => Ok(NMEASentenceType::PUBX04(Pubx04Data::from_nmea_str(&self.inner)?)),
+                "00" => Ok(NMEASentenceType::PUBX00(Pubx00Data::from_nmea_str(&self.inner)?)),
+                "03" => Ok(NMEASentenceType::PUBX03(Pubx03Data::from_nmea_str(&self.inner)?)),
+                "04" => Ok(NMEASentenceType::PUBX04(Pubx04Data::from_nmea_str(&self.inner)?)),
                 _ => Err(NMEAError::InvalidData(self.inner.to_owned())),
             },
             _ => Err(NMEAError::InvalidData(self.inner.to_owned())),
@@ -95,7 +102,15 @@ mod test {
     #[test]
     fn test_pubx00_sentence() {
         let sentence =
-            NMEASentence::new("$PUBX,00,025554.00,0000.00000,N,00000.00000,E,0.000,NF,5311696,3755936,0.000,0.00,0.000,,99.99,99.99,99.99,0,0,0*28").unwrap();
+            NMEASentence::new("$PUBX,00,025554.00,0000.00000,N,00000.00000,E,0.000,NF,5311696,3755936,0.000,0.00,0.000,,99.99,99.99,99.99,0,0,0*28\r\n").unwrap();
+        let data = sentence.data().unwrap();
+        println!("{data:#?}");
+    }
+
+    #[test]
+    fn test_pubx03_sentence() {
+        let sentence =
+            NMEASentence::new("$PUBX,03,00*1C\r\n").unwrap();
         let data = sentence.data().unwrap();
         println!("{data:#?}");
     }
