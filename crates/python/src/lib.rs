@@ -120,6 +120,18 @@ impl PyNeoVIMIC {
     fn audio_save(&self, fname: String) -> PyResult<()> {
         Ok(self.0.lock().unwrap().audio_save(fname).unwrap())
     }
+
+    fn gps_open(&self) -> PyResult<()> {
+        Ok(self.0.lock().unwrap().gps_open().unwrap())
+    }
+
+    fn gps_close(&self) -> PyResult<()> {
+        Ok(self.0.lock().unwrap().gps_close().unwrap())
+    }
+
+    fn gps_info(&self) -> PyResult<()> {
+        Ok(self.0.lock().unwrap().gps_close().unwrap())
+    }
 }
 
 impl PyNeoVIMIC {

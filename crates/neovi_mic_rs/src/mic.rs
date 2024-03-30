@@ -1,8 +1,7 @@
 use std::borrow::BorrowMut;
 
 use crate::{
-    io::{IOBitMode, IO},
-    types::Result, gps::GPSDevice, audio::Audio,
+    audio::Audio, gps::GPSDevice, io::{IOBitMode, IO}, nmea::types::GpsInfo, types::Result
 };
 use rusb::{self, GlobalContext};
 
@@ -309,6 +308,34 @@ impl NeoVIMIC {
         match &self.audio {
             Some(audio) => audio.save_to_file(fname),
             None => panic!("Audio device isn't available"),
+        }
+    }
+
+    pub fn gps_open(&self) -> Result<()> {
+        match &self.gps {
+            Some(gps) => gps.open(),
+            None => panic!("GPS device isn't available"),
+        }
+    }
+
+    pub fn gps_close(&self) -> Result<()> {
+        match &self.gps {
+            Some(gps) => gps.close(),
+            None => panic!("GPS device isn't available"),
+        }
+    }
+
+    pub fn gps_info(&self) -> Result<GpsInfo> {
+        match &self.gps {
+            Some(gps) => Ok(gps.get_info()),
+            None => panic!("GPS device isn't available"),
+        }
+    }
+
+    pub fn gps_has_lock(&self) -> Result<bool> {
+        match &self.gps {
+            Some(gps) => Ok(gps.has_lock()),
+            None => panic!("GPS device isn't available"),
         }
     }
 }

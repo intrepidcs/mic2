@@ -9,7 +9,8 @@ name = "neovi_mic"
 crate-type = ["cdylib"]
 
 [dependencies]
-pyo3 = "0.20.0"
+chrono = "0.4.26"
+pyo3 = { version = "0.21.0", features = ["chrono"] }
 
 [dependencies.neovi_mic_rs]
 path = "../neovi_mic_rs"
