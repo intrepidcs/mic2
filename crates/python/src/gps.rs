@@ -36,6 +36,76 @@ impl PyGPSInfo {
         let current_time = self.0.lock().unwrap().current_time.unwrap();
         Ok(current_time.to_object(py))
     }
+
+    // TODO: latitude
+    // TODO: longitude
+    // TODO: nav_stat
+    // TODO: satellites
+
+    #[getter]
+    fn altitude(&self) -> PyResult<f64> {
+        Ok(self.0.lock().unwrap().altitude.unwrap())
+    }
+
+    #[getter]
+    fn h_acc(&self) -> PyResult<f64> {
+        Ok(self.0.lock().unwrap().h_acc.unwrap())
+    }
+
+    #[getter]
+    fn v_acc(&self) -> PyResult<f64> {
+        Ok(self.0.lock().unwrap().v_acc.unwrap())
+    }
+
+    #[getter]
+    fn sog_kmh(&self) -> PyResult<f64> {
+        Ok(self.0.lock().unwrap().sog_kmh.unwrap())
+    }
+
+    #[getter]
+    fn cog(&self) -> PyResult<f64> {
+        Ok(self.0.lock().unwrap().cog.unwrap())
+    }
+
+    #[getter]
+    fn vvel(&self) -> PyResult<f64> {
+        Ok(self.0.lock().unwrap().vvel.unwrap())
+    }
+
+    #[getter]
+    fn age_c(&self) -> PyResult<f64> {
+        Ok(self.0.lock().unwrap().age_c.unwrap())
+    }
+
+    #[getter]
+    fn hdop(&self) -> PyResult<f64> {
+        Ok(self.0.lock().unwrap().hdop.unwrap())
+    }
+
+    #[getter]
+    fn vdop(&self) -> PyResult<f64> {
+        Ok(self.0.lock().unwrap().vdop.unwrap())
+    }
+
+    #[getter]
+    fn tdop(&self) -> PyResult<f64> {
+        Ok(self.0.lock().unwrap().tdop.unwrap())
+    }
+
+    #[getter]
+    fn clock_bias(&self) -> PyResult<f64> {
+        Ok(self.0.lock().unwrap().clock_bias.unwrap())
+    }
+
+    #[getter]
+    fn clock_drift(&self) -> PyResult<f64> {
+        Ok(self.0.lock().unwrap().clock_drift.unwrap())
+    }
+
+    #[getter]
+    fn timepulse_granularity(&self) -> PyResult<f64> {
+        Ok(self.0.lock().unwrap().timepulse_granularity.unwrap())
+    }
 }
 
 impl PyGPSInfo {
@@ -45,8 +115,6 @@ impl PyGPSInfo {
         }
     }
 }
-
-
 
 create_python_object!(PyGPSDevice, "GPSDevice", GPSDevice);
 #[pymethods]
