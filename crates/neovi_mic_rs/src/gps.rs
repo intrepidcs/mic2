@@ -3,7 +3,7 @@ use std::{borrow::BorrowMut, time::Duration};
 use crate::{
     nmea::{
         sentence::NMEASentence,
-        types::{GpsDMS, GpsInfo, GpsNavigationStatus, NMEAError, NMEASentenceType},
+        types::{GPSDMS, GPSInfo, GpsNavigationStatus, NMEAError, NMEASentenceType},
     },
     types::{Error, Result},
     ubx,
@@ -26,7 +26,7 @@ enum GPSPacket {
     NMEAUnsupported(String, NMEAError),
     Unsupported(Vec<u8>, String),
 }
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct GPSDevice {
     /// Port name string similar to "/dev/ttyACM0"
     pub port_name: String,
@@ -38,7 +38,7 @@ pub struct GPSDevice {
     baud_rate: u32,
     thread: std::cell::RefCell<Option<std::thread::JoinHandle<()>>>,
     shutdown_thread: std::sync::Arc<std::sync::atomic::AtomicBool>,
-    gps_info: std::sync::Arc<std::sync::RwLock<GpsInfo>>,
+    gps_info: std::sync::Arc<std::sync::RwLock<GPSInfo>>,
 }
 
 impl Drop for GPSDevice {
@@ -59,7 +59,14 @@ const UBLOX_PIDS: [u16; 2] = [0x01A8, 0x01A7];
 const UBLOX_DEFAULT_BAUD: u32 = 115200;
 
 impl GPSDevice {
-    /// todo!()
+    pub fn find(vid: &u16, pid: &u16) -> Option<Self> {
+        for device in Self::find_all().unwrap() {
+            if device.vid == *vid && device.pid == *pid {
+                return Some(device);
+            }
+        }
+        None
+    }
     pub fn find_all() -> Result<Vec<Self>> {
         let gps_devices: Vec<Self> = serialport::available_ports()?
             .into_iter()
@@ -76,7 +83,7 @@ impl GPSDevice {
                                 std::sync::atomic::AtomicBool::new(false),
                             ),
                             gps_info: std::sync::Arc::new(std::sync::RwLock::new(
-                                GpsInfo::default(),
+                                GPSInfo::default(),
                             )),
                         })
                     } else {
@@ -251,8 +258,8 @@ impl GPSDevice {
         Ok(())
     }
 
-    /// Returns the current GPS Info. See [GpsInfo] for more info. Port should be open first.
-    pub fn get_info(&self) -> GpsInfo {
+    /// Returns the current GPS Info. See [GPSInfo] for more info. Port should be open first.
+    pub fn get_info(&self) -> GPSInfo {
         self.gps_info.read().unwrap().clone()
     }
 

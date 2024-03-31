@@ -1,5 +1,6 @@
 pub mod usb;
 pub mod utils;
+pub mod gps;
 
 use std::sync::{Arc, Mutex};
 
@@ -7,6 +8,8 @@ use pyo3::prelude::*;
 
 use neovi_mic_rs::mic::{find_neovi_mics, NeoVIMIC};
 use usb::PyUsbDeviceInfo;
+
+use gps::PyGPSInfo;
 
 use crate::utils::create_python_object;
 
@@ -37,7 +40,7 @@ impl PyNeoVIMIC {
 
     fn __repr__(&self) -> String {
         let description = self.__str__();
-        format!("<NeoVI MIC2 {description}").to_string()
+        format!("<NeoVI MIC2 {description}>").to_string()
     }
 
     fn get_serial_number(&self) -> PyResult<String> {
@@ -129,8 +132,8 @@ impl PyNeoVIMIC {
         Ok(self.0.lock().unwrap().gps_close().unwrap())
     }
 
-    fn gps_info(&self) -> PyResult<()> {
-        Ok(self.0.lock().unwrap().gps_close().unwrap())
+    fn gps_info(&self) -> PyResult<PyGPSInfo> {
+        Ok(PyGPSInfo::from(&self.0.lock().unwrap().gps_info().unwrap()))
     }
 }
 
@@ -147,6 +150,8 @@ impl PyNeoVIMIC {
 fn neovi_mic(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<PyNeoVIMIC>()?;
     m.add_class::<PyUsbDeviceInfo>()?;
+    m.add_class::<PyGPSInfo>()?;
+    //m.add_class::<PyGPSDevice>()?;
     m.add_function(wrap_pyfunction!(find, m)?)?;
     Ok(())
 }

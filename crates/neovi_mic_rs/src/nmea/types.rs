@@ -243,7 +243,7 @@ pub enum GgaQualityIndicator {
 /// 
 /// This object is dumb, it doesn't have any awareness of North/South or East/West or Negative numbers.
 #[derive(Clone, Debug, Copy, PartialEq)]
-pub struct GpsDMS {
+pub struct GPSDMS {
     pub degrees: u16,
     pub minutes: u8,
     pub seconds: u8,
@@ -262,20 +262,20 @@ fn round_f64(f: f64, p: i32, round_up: bool) -> f64 {
     result
 }
 
-impl GpsDMS {
+impl GPSDMS {
 
     pub fn new(degrees: u16, minutes: u8, seconds: u8) -> Self {
         Self {
             degrees, minutes, seconds
         }
     }
-    /// Creates a new [GpsDMS] from a string directly from NMEA sentences
+    /// Creates a new [GPSDMS] from a string directly from NMEA sentences
     /// Example: ddmm.mm
     /// 4404.14036
     /// ```
-    /// use neovi_mic_rs::nmea::types::GpsDMS;
+    /// use neovi_mic_rs::nmea::types::GPSDMS;
     /// 
-    /// let dms = GpsDMS::from_nmea_str("3888.97").unwrap();
+    /// let dms = GPSDMS::from_nmea_str("3888.97").unwrap();
     /// println!("{dms:#?} {}", dms.to_decimal());
     /// assert!((dms.to_decimal() - 38.8897).abs() < f64::EPSILON, "{} is not approximately equal to {}", dms.to_decimal(), 38.8897);
     /// ```
@@ -304,13 +304,13 @@ impl GpsDMS {
         })
     }
 
-    /// Create a new [GpsDMS] from a decimal degree
+    /// Create a new [GPSDMS] from a decimal degree
     /// 
     /// Example:
     /// ```
-    /// use neovi_mic_rs::nmea::types::GpsDMS;
+    /// use neovi_mic_rs::nmea::types::GPSDMS;
     /// 
-    /// let dms = GpsDMS::from_decimal(38.8897_f64);
+    /// let dms = GPSDMS::from_decimal(38.8897_f64);
     /// println!("{dms:#?} {}", dms.to_decimal());
     /// assert!((dms.to_decimal() - 38.8897).abs() < 1.0e-4, "{} is not approximately equal to {}", dms.to_decimal(), 38.8897);
     /// ```
@@ -332,13 +332,13 @@ impl GpsDMS {
     /// 
     /// Example:
     /// ```
-    /// use neovi_mic_rs::nmea::types::GpsDMS;
+    /// use neovi_mic_rs::nmea::types::GPSDMS;
     /// 
-    /// let latitude_dms = GpsDMS { degrees: 38, minutes: 53, seconds: 23 };
+    /// let latitude_dms = GPSDMS { degrees: 38, minutes: 53, seconds: 23 };
     /// let latitude_decimal = latitude_dms.to_decimal();
     /// assert!((latitude_decimal - 38.5323).abs() < 1.0e-4, "{} is not approximately equal to {}", latitude_decimal, 38.5323);
     /// 
-    /// let longitude_dms = GpsDMS { degrees: 77, minutes: 00, seconds: 32 };
+    /// let longitude_dms = GPSDMS { degrees: 77, minutes: 00, seconds: 32 };
     /// let longitude_decimal = longitude_dms.to_decimal();
     /// assert!((longitude_decimal - 77.0032).abs() < 1.0e-4, "{} is not approximately equal to {}", longitude_decimal, 77.0032);
     /// ```
@@ -648,10 +648,10 @@ impl GpsDataFromNmeaString for GsvDataCollection {
 /// Example: $GNGLL,4404.14012,N,12118.85993,W,001037.00,A,A*67
 #[derive(Clone, Debug, PartialEq)]
 pub struct GllData {
-    /// Latitude. See [GpsDMS] for more details
-    pub latitude: Option<GpsDMS>,
-    /// Longitude. See [GpsDMS] for more details
-    pub longitude: Option<GpsDMS>,
+    /// Latitude. See [GPSDMS] for more details
+    pub latitude: Option<GPSDMS>,
+    /// Longitude. See [GPSDMS] for more details
+    pub longitude: Option<GPSDMS>,
     /// UTC of this position.
     pub timestamp: Option<NaiveTime>,
     /// Status (A = Valid, V = Invalid). Is true when valid.
@@ -678,7 +678,7 @@ impl GpsDataFromNmeaString for GllData {
                         format!("GLL sentence is not {FIELD_COUNT} fields in length").to_string(),
                     ))
                 } else {
-                    let latitude = match GpsDMS::from_str(items[1]) {
+                    let latitude = match GPSDMS::from_str(items[1]) {
                         Ok(dms) => {
                             match &items[2] {
                                 "N" => dms *= 1,
@@ -796,12 +796,12 @@ impl GpsNavigationStatus {
 pub struct Pubx00Data {
     // UTC Time, Current time
     pub current_time: Option<NaiveTime>,
-    /// Latitude. See [GpsDMS] for more details
-    pub latitude: GpsDMS,
+    /// Latitude. See [GPSDMS] for more details
+    pub latitude: GPSDMS,
     /// N/S Indicator, N=north or S=south
     pub n: char,
-    /// Longitude. See [GpsDMS] for more details
-    pub longitude: GpsDMS,
+    /// Longitude. See [GPSDMS] for more details
+    pub longitude: GPSDMS,
     /// E/W Indicator, E=east or W=west 
     pub e: char,
     /// Altitude above user datum ellipsoid (m)
@@ -852,9 +852,9 @@ impl GpsDataFromNmeaString for Pubx00Data {
                 } else {
                     Ok(Pubx00Data {
                         current_time: NaiveTime::parse_from_str(&items[2], "%H%M%S.%f").ok(),
-                        latitude: GpsDMS::from_nmea_str(items[3])?,
+                        latitude: GPSDMS::from_nmea_str(items[3])?,
                         n: items[4].chars().next().unwrap_or_default(),
-                        longitude: GpsDMS::from_nmea_str(items[5])?,
+                        longitude: GPSDMS::from_nmea_str(items[5])?,
                         e: items[6].chars().next().unwrap_or_default(),
                         altitude: items[7].parse::<f64>()?,
                         nav_stat: GpsNavigationStatus::from_str(items[8])?,
@@ -1072,13 +1072,13 @@ impl fmt::Display for NMEASentenceType {
 type GpsSatInfo = Pubx03SatData;
 
 #[derive(Clone, Debug, Default, PartialEq)]
-pub struct GpsInfo {
+pub struct GPSInfo {
     // UTC Time, Current time
     pub current_time: Option<NaiveDateTime>,
-    /// Latitude. See [GpsDMS] for more details. N/S Indicator, N=north or S=south
-    pub latitude: Option<(GpsDMS, char)>,
-    /// Longitude. See [GpsDMS] for more details. E/W Indicator, E=east or W=west 
-    pub longitude: Option<(GpsDMS, char)>,
+    /// Latitude. See [GPSDMS] for more details. N/S Indicator, N=north or S=south
+    pub latitude: Option<(GPSDMS, char)>,
+    /// Longitude. See [GPSDMS] for more details. E/W Indicator, E=east or W=west 
+    pub longitude: Option<(GPSDMS, char)>,
     /// Altitude above user datum ellipsoid (m)
     pub altitude: Option<f64>,
     /// Navigation Status. See [GpsNavigationStatus] for more details
@@ -1111,7 +1111,7 @@ pub struct GpsInfo {
     pub timepulse_granularity: Option<f64>,
 }
 
-impl GpsInfo {
+impl GPSInfo {
     pub fn update_from_nmea_sentence(&mut self, sentence: &NMEASentenceType) {
         match &sentence {
             NMEASentenceType::PUBX00(data) => {
@@ -1161,20 +1161,20 @@ mod tests {
 
     #[test]
     fn test_gps_dms() {
-        let degree_map: HashMap<&str, GpsDMS> = HashMap::from([
-            ("0.0", GpsDMS::new(0, 0, 0)),
-            ("0.005", GpsDMS::new(0, 0, 18)),
-            ("0.01", GpsDMS::new(0, 0, 36)),
-            ("1.23", GpsDMS::new(1, 13, 48)),
-            ("1.25", GpsDMS::new(1, 15, 0)),
-            ("12.53", GpsDMS::new(12, 31, 48)),
-            ("47.31", GpsDMS::new(47, 18, 36)),
-            ("90.99", GpsDMS::new(90, 59, 24)),
-            ("90.995", GpsDMS::new(90, 59, 42)),
+        let degree_map: HashMap<&str, GPSDMS> = HashMap::from([
+            ("0.0", GPSDMS::new(0, 0, 0)),
+            ("0.005", GPSDMS::new(0, 0, 18)),
+            ("0.01", GPSDMS::new(0, 0, 36)),
+            ("1.23", GPSDMS::new(1, 13, 48)),
+            ("1.25", GPSDMS::new(1, 15, 0)),
+            ("12.53", GPSDMS::new(12, 31, 48)),
+            ("47.31", GPSDMS::new(47, 18, 36)),
+            ("90.99", GPSDMS::new(90, 59, 24)),
+            ("90.995", GPSDMS::new(90, 59, 42)),
         ]);
         for (degree, dms) in &degree_map {
             let degree = degree.parse::<f64>().unwrap();
-            let new_dms = GpsDMS::from_decimal(degree);
+            let new_dms = GPSDMS::from_decimal(degree);
             assert_eq!(new_dms.degrees, dms.degrees);
             assert_eq!(new_dms.minutes, dms.minutes);
             assert_eq!(new_dms.seconds, dms.seconds);
@@ -1183,20 +1183,20 @@ mod tests {
         }
 
 
-        let nmea_str_map: HashMap<&str, GpsDMS> = HashMap::from([
-            ("0000.00", GpsDMS::new(0, 0, 0)),
-            ("0000.30", GpsDMS::new(0, 0, 18)),
-            ("0000.60", GpsDMS::new(0, 0, 36)),
-            ("0113.80", GpsDMS::new(1, 13, 48)),
-            ("0115.00", GpsDMS::new(1, 15, 0)),
-            ("1231.80", GpsDMS::new(12, 31, 48)),
-            ("4718.60", GpsDMS::new(47, 18, 36)),
-            ("9059.40", GpsDMS::new(90, 59, 24)),
-            ("9099.70", GpsDMS::new(90, 99, 42)),
-            ("18099.70", GpsDMS::new(180, 99, 42)),
+        let nmea_str_map: HashMap<&str, GPSDMS> = HashMap::from([
+            ("0000.00", GPSDMS::new(0, 0, 0)),
+            ("0000.30", GPSDMS::new(0, 0, 18)),
+            ("0000.60", GPSDMS::new(0, 0, 36)),
+            ("0113.80", GPSDMS::new(1, 13, 48)),
+            ("0115.00", GPSDMS::new(1, 15, 0)),
+            ("1231.80", GPSDMS::new(12, 31, 48)),
+            ("4718.60", GPSDMS::new(47, 18, 36)),
+            ("9059.40", GPSDMS::new(90, 59, 24)),
+            ("9099.70", GPSDMS::new(90, 99, 42)),
+            ("18099.70", GPSDMS::new(180, 99, 42)),
         ]);
         for (nmea_str, dms) in &nmea_str_map {
-            let new_dms = GpsDMS::from_nmea_str(nmea_str.to_string()).unwrap();
+            let new_dms = GPSDMS::from_nmea_str(nmea_str.to_string()).unwrap();
             let degree = new_dms.to_decimal(3);
             assert_eq!(new_dms.degrees, dms.degrees);
             assert_eq!(new_dms.minutes, dms.minutes);
@@ -1207,7 +1207,7 @@ mod tests {
 
         /*
         println!("{dms:#?} {}", dms.to_decimal());
-        let dms = GpsDMS::from_nmea_str("38.8897").unwrap();
+        let dms = GPSDMS::from_nmea_str("38.8897").unwrap();
         println!("{dms:#?} {}", dms.to_decimal());
         assert!((dms.to_decimal() - 38.8897).abs() < f64::EPSILON, "{} is not approximately equal to {}", dms.to_decimal(), 38.8897);
         */

@@ -1,7 +1,7 @@
 use std::borrow::BorrowMut;
 
 use crate::{
-    audio::Audio, gps::GPSDevice, io::{IOBitMode, IO}, nmea::types::GpsInfo, types::Result
+    audio::Audio, gps::GPSDevice, io::{IOBitMode, IO}, nmea::types::GPSInfo, types::Result
 };
 use rusb::{self, GlobalContext};
 
@@ -119,7 +119,7 @@ pub fn find_neovi_mics() -> Result<Vec<NeoVIMIC>> {
         // define all the actual objects that reflect the UsbDeviceInfo
         let mut io = None;
         let mut audio = None;
-        let gps = None;
+        let mut gps = None;
         // Audio devices are kind of a pain to link to the actual hub so we are just
         // going to match indexes on how they are found on the system. Index 0 neoVI MIC2 should match up
         // to Index 1 of the audio codecs found.
@@ -159,7 +159,7 @@ pub fn find_neovi_mics() -> Result<Vec<NeoVIMIC>> {
                     }
                     UsbDeviceType::GPS => {
                         gps_usb_info = Some(child.clone());
-                        // TODO: gps = GPSDevice::from(child);
+                        gps = GPSDevice::find(&child.vendor_id, &child.product_id);
                     }
                     UsbDeviceType::Audio => {
                         audio_usb_info = Some(child.clone());
@@ -325,7 +325,7 @@ impl NeoVIMIC {
         }
     }
 
-    pub fn gps_info(&self) -> Result<GpsInfo> {
+    pub fn gps_info(&self) -> Result<GPSInfo> {
         match &self.gps {
             Some(gps) => Ok(gps.get_info()),
             None => panic!("GPS device isn't available"),
