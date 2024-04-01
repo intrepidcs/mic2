@@ -31,23 +31,27 @@ enum GPSPacket {
 }
 
 impl GPSPacket {
-    pub fn new(bytes: &[u8]) -> Self {
-        match NMEASentence::from_bytes(&bytes) {
-            Ok(ns) => match ns.data() {
-                Ok(nst) => GPSPacket::NMEA(nst),
-                Err(e) => GPSPacket::NMEAUnsupported(ns.inner, e),
-            },
-            Err(NMEAError::PartialStart(s)) => Self::NMEAPartialStart(s),
-            Err(NMEAError::Partial(s)) => Self::NMEAPartial(s),
-            Err(NMEAError::PartialEnd(s)) => Self::NMEAPartialEnd(s),
-            Err(NMEAError::InvalidMode(s)) => Self::Unsupported(bytes.to_vec(), s),
-            Err(NMEAError::InvalidData(s)) => {
-                match ubx::PacketHeader::from_bytes(&bytes) {
-                    Ok(p) => Self::Ubx(p),
-                    Err(e) => Self::Unsupported(bytes.to_vec(), e.to_string()),
-                }
-            },
+    pub fn new(bytes: &[u8]) -> Vec<Self> {
+        let mut packets = Vec::new();
+        for packet in NMEASentence::from_bytes(&bytes) {
+            packets.push(match packet {
+                Ok(ns) => match ns.data() {
+                    Ok(nst) => GPSPacket::NMEA(nst),
+                    Err(e) => GPSPacket::NMEAUnsupported(ns.inner, e),
+                },
+                Err(NMEAError::PartialStart(s)) => Self::NMEAPartialStart(s),
+                Err(NMEAError::Partial(s)) => Self::NMEAPartial(s),
+                Err(NMEAError::PartialEnd(s)) => Self::NMEAPartialEnd(s),
+                Err(NMEAError::InvalidMode(s)) => Self::Unsupported(bytes.to_vec(), s),
+                Err(NMEAError::InvalidData(s)) => {
+                    match ubx::PacketHeader::from_bytes(&bytes) {
+                        Ok(p) => Self::Ubx(p),
+                        Err(e) => Self::Unsupported(bytes.to_vec(), e.to_string()),
+                    }
+                },
+            });
         }
+        packets
     }
 }
 
@@ -211,38 +215,40 @@ impl GPSDevice {
                         } else {
                             &buffer[..size]
                         };
-                        let packet = GPSPacket::new(&data);
+                        let packets = GPSPacket::new(&data);
                         // Parse the packet
-                        match &packet {
-                            GPSPacket::NMEA(nmea) => match nmea {
-                                NMEASentenceType::PUBX00(data) => {
-                                    gps_info.write().unwrap().update_from_nmea_sentence(nmea);
+                        for packet in packets {
+                            match &packet {
+                                GPSPacket::NMEA(nmea) => match nmea {
+                                    NMEASentenceType::PUBX00(data) => {
+                                        gps_info.write().unwrap().update_from_nmea_sentence(nmea);
+                                    }
+                                    NMEASentenceType::PUBX03(data) => {
+                                        println!("PUBX03: {data:?}");
+                                        gps_info.write().unwrap().update_from_nmea_sentence(nmea);
+                                    }
+                                    NMEASentenceType::PUBX04(data) => {
+                                        gps_info.write().unwrap().update_from_nmea_sentence(nmea);
+                                    }
+                                    _ => panic!("Unsupported sentence: {nmea:?}"),
+                                },
+                                GPSPacket::Ubx(packet) => println!("Received: {:#?}", packet),
+                                GPSPacket::Unsupported(data, e) => {
+                                    println!("Unsupported: {data:?} {e}")
                                 }
-                                NMEASentenceType::PUBX03(data) => {
-                                    println!("PUBX03: {data:#?}");
-                                    gps_info.write().unwrap().update_from_nmea_sentence(nmea);
+                                GPSPacket::NMEAUnsupported(data, e) => {
+                                    println!("Unsupported NMEA: {data:?} {e:?}")
                                 }
-                                NMEASentenceType::PUBX04(data) => {
-                                    gps_info.write().unwrap().update_from_nmea_sentence(nmea);
-                                }
-                                _ => panic!("Unsupported sentence: {nmea:?}"),
-                            },
-                            GPSPacket::Ubx(packet) => println!("Received: {:#?}", packet),
-                            GPSPacket::Unsupported(data, e) => {
-                                println!("Unsupported: {data:?} {e}")
+                                GPSPacket::NMEAPartialStart(s) => {
+                                    partial_sentence = s.to_owned();
+                                    partial_complete = false;
+                                },
+                                GPSPacket::NMEAPartial(s) => partial_sentence.push_str(s),
+                                GPSPacket::NMEAPartialEnd(s) => {
+                                    partial_sentence.push_str(s);
+                                    partial_complete = true;
+                                },
                             }
-                            GPSPacket::NMEAUnsupported(data, e) => {
-                                println!("Unsupported NMEA: {data:?} {e:?}")
-                            }
-                            GPSPacket::NMEAPartialStart(s) => {
-                                partial_sentence = s.to_owned();
-                                partial_complete = false;
-                            },
-                            GPSPacket::NMEAPartial(s) => partial_sentence.push_str(s),
-                            GPSPacket::NMEAPartialEnd(s) => {
-                                partial_sentence.push_str(s);
-                                partial_complete = true;
-                            },
                         }
                         //println!("GPSInfo: {:?}", gps_info.read().unwrap());
                     }

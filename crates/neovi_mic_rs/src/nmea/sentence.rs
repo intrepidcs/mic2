@@ -33,27 +33,34 @@ impl NMEASentence {
         })
     }
 
-    /// Creates a new [NMEASentence] from a byte array. Expects the byte array to be able to convert
-    /// into a UTF-8 String.
-    pub fn from_bytes(bytes: &[u8]) -> Result<Self, NMEAError> {
+    /// Creates a new Vec<Result<[NMEASentence], [NMEAError]>> from a byte array. 
+    /// Expects the byte array to be able to convert into a UTF-8 String.
+    pub fn from_bytes(bytes: &[u8]) -> Vec<Result<Self, NMEAError>> {
         // Convert to string
+        let mut sentences = Vec::new();
         let inner = match String::from_utf8(bytes.to_vec()) {
             Ok(s) => s,
             Err(_) => {
-                return Err(NMEAError::InvalidData(
-                    "Failed to Create NMEA sentence from bytes".into(),
-                ))
-            }
+                sentences.push(
+                    Err(NMEAError::InvalidData(
+                        "Failed to Create NMEA sentence from bytes".into(),
+                    ))
+                );
+                return sentences;
+            },
         };
 
-        let is_start = Self::is_start(inner.as_str());
-        let has_checksum = Self::contains_checksum(inner.as_str());
-        match (is_start, has_checksum) {
-            (true, false) => Err(NMEAError::PartialStart(inner)),
-            (false, false) => Err(NMEAError::Partial(inner)),
-            (false, true) => Err(NMEAError::PartialEnd(inner)),
-            (true, true) => Ok(Self { inner }),
+        for sentence in inner.split("\r\n") {
+            let is_start = Self::is_start(sentence);
+            let has_checksum = Self::contains_checksum(sentence);
+            sentences.push(match (is_start, has_checksum) {
+                (true, false) => Err(NMEAError::PartialStart(sentence.into())),
+                (false, false) => Err(NMEAError::Partial(sentence.into())),
+                (false, true) => Err(NMEAError::PartialEnd(sentence.into())),
+                (true, true) => Ok(Self { inner: sentence.into() }),
+            });
         }
+        sentences
     }
 
     /// Checks the NMEA sentence to see if it contains a $ at the beginning of the sentence.
