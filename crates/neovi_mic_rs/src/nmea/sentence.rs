@@ -1,4 +1,7 @@
-use super::types::{GstData, GsaData, GsvDataCollection, GllData, GgaData, VtgData, RmcData, Pubx00Data, Pubx03Data, Pubx04Data, NMEAError, NMEASentenceType, GpsDataFromNmeaString};
+use super::types::{
+    nmea_str_to_vec, GgaData, GllData, GpsDataFromNmeaString, GsaData, GstData, GsvDataCollection,
+    NMEAError, NMEASentenceType, Pubx00Data, Pubx03Data, Pubx04Data, RmcData, VtgData,
+};
 
 /// Represents a GPS NMEA Sentence
 #[derive(Debug, Clone)]
@@ -9,12 +12,12 @@ pub struct NMEASentence {
 
 impl NMEASentence {
     /// Creates a new [NMEASentence] from a string
-    /// 
+    ///
     /// Example:
     /// ```
     /// use neovi_mic_rs::nmea::sentence::NMEASentence;
     /// use neovi_mic_rs::nmea::types::NMEASentenceType;
-    /// 
+    ///
     /// let sentence =
     /// NMEASentence::new("$GPGST,182141.000,15.5,15.3,7.2,21.8,0.9,0.5,0.8*54").unwrap();
     /// let data = sentence.data().unwrap();
@@ -26,43 +29,74 @@ impl NMEASentence {
     /// ```
     pub fn new(raw_data: impl Into<String>) -> Result<Self, NMEAError> {
         Ok(Self {
-            inner: raw_data.into(),
+            inner: raw_data.into().replace("\r\n", ""),
         })
     }
 
     /// Creates a new [NMEASentence] from a byte array. Expects the byte array to be able to convert
     /// into a UTF-8 String.
     pub fn from_bytes(bytes: &[u8]) -> Result<Self, NMEAError> {
+        // Convert to string
         let inner = match String::from_utf8(bytes.to_vec()) {
             Ok(s) => s,
-            Err(_) => return Err(NMEAError::InvalidData("Failed to Create NMEA sentence from bytes".into())),
+            Err(_) => {
+                return Err(NMEAError::InvalidData(
+                    "Failed to Create NMEA sentence from bytes".into(),
+                ))
+            }
         };
-        Ok(Self {
-            inner,
-        })
+
+        let is_start = Self::is_start(inner.as_str());
+        let has_checksum = Self::contains_checksum(inner.as_str());
+        match (is_start, has_checksum) {
+            (true, false) => Err(NMEAError::PartialStart(inner)),
+            (false, false) => Err(NMEAError::Partial(inner)),
+            (false, true) => Err(NMEAError::PartialEnd(inner)),
+            (true, true) => Ok(Self { inner }),
+        }
+    }
+
+    /// Checks the NMEA sentence to see if it contains a $ at the beginning of the sentence.
+    /// Returns true if it contains a $ at the start, false otherwise.
+    pub fn is_start<'a>(sentence: impl Into<&'a str>) -> bool {
+        // match checksum pattern at the end of a nmea sentence. * followed by two hexidecimal digits
+        regex::Regex::new(r"^\$").unwrap().is_match(sentence.into())
+    }
+
+    /// Checks the NMEA sentence to see if it contains a checksum at the end.
+    /// Returns true if it contains a checksum, false otherwise.
+    pub fn contains_checksum<'a>(sentence: impl Into<&'a str>) -> bool {
+        // match checksum pattern at the end of a nmea sentence. * followed by two hexidecimal digits
+        regex::Regex::new(r"\*[0-9a-fA-F]{2}")
+            .unwrap()
+            .is_match(sentence.into())
     }
 
     /// Returns the NMEASentenceType for parsing, NMEAError on error.
     pub fn data(&self) -> Result<NMEASentenceType, NMEAError> {
         // Split the raw data into a vec
-        let items: Vec<&str> = self
-            .inner
-            .split(',')
-            .map(|v| v.split('*').nth(0).unwrap_or(v)) // strip * from the end
-            .collect();
+        let items = nmea_str_to_vec(&self.inner);
         let result = match &items[0][0..] {
             "$GPGST" => Ok(NMEASentenceType::GST(GstData::from_nmea_str(&self.inner)?)),
             "$GPGSA" => Ok(NMEASentenceType::GSA(GsaData::from_nmea_str(&self.inner)?)),
-            "$GPGSV" => Ok(NMEASentenceType::GSV(GsvDataCollection::from_nmea_str(&self.inner)?)),
+            "$GPGSV" => Ok(NMEASentenceType::GSV(GsvDataCollection::from_nmea_str(
+                &self.inner,
+            )?)),
             // "GLL" => Ok(NMEASentenceType::GLL(GllData::from_nmea_str(&self.inner)?)),
             // "GGA" => Ok(NMEASentenceType::GGA(GgaData::from_nmea_str(&self.inner)?)),
             // "VTG" => Ok(NMEASentenceType::VTG(VtgData::from_nmea_str(&self.inner)?)),
             // "RMC" => Ok(NMEASentenceType::RMC(RmcData::from_nmea_str(&self.inner)?)),
             // "GNTXT" => Ok(NMEASentenceType::GNTXT(GNTXTData::from_nmea_str(&self.inner)?)),
             "$PUBX" => match items[1] {
-                "00" => Ok(NMEASentenceType::PUBX00(Pubx00Data::from_nmea_str(&self.inner)?)),
-                "03" => Ok(NMEASentenceType::PUBX03(Pubx03Data::from_nmea_str(&self.inner)?)),
-                "04" => Ok(NMEASentenceType::PUBX04(Pubx04Data::from_nmea_str(&self.inner)?)),
+                "00" => Ok(NMEASentenceType::PUBX00(Pubx00Data::from_nmea_str(
+                    &self.inner,
+                )?)),
+                "03" => Ok(NMEASentenceType::PUBX03(Pubx03Data::from_nmea_str(
+                    &self.inner,
+                )?)),
+                "04" => Ok(NMEASentenceType::PUBX04(Pubx04Data::from_nmea_str(
+                    &self.inner,
+                )?)),
                 _ => Err(NMEAError::InvalidData(self.inner.to_owned())),
             },
             _ => Err(NMEAError::InvalidData(self.inner.to_owned())),
@@ -108,9 +142,16 @@ mod test {
     }
 
     #[test]
+    fn test_pubx03_empty_sentence() {
+        let sentence = NMEASentence::new("$PUBX,03,00*1C\r\n").unwrap();
+        let data = sentence.data().unwrap();
+        println!("{data:#?}");
+    }
+
+    #[test]
     fn test_pubx03_sentence() {
         let sentence =
-            NMEASentence::new("$PUBX,03,00*1C\r\n").unwrap();
+            NMEASentence::new("$PUBX,03,06,2,U,137,37,24,000,8,U,053,52,28,064,9,U,202,12,21,000,14,-,,,22,000,27,-,049,16,,000,81,-,,,08,000*54\r\n").unwrap();
         let data = sentence.data().unwrap();
         println!("{data:#?}");
     }

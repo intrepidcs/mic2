@@ -64,6 +64,12 @@ pub enum FAAModeType {
 pub enum NMEAError {
     InvalidData(String),
     InvalidMode(String),
+    /// Partial NMEA sentence, this usually
+    /// happens when the receiver is sending
+    /// the message over multiple newlines (PUBX03 does this)
+    PartialStart(String),
+    Partial(String),
+    PartialEnd(String),
 }
 
 impl std::convert::From<ParseIntError> for NMEAError {
@@ -381,11 +387,14 @@ pub struct GstData {
     pub altitude_error: Option<f32>,
 }
 
-fn nmea_str_to_vec<'a, 'b: 'a>(data: impl Into<&'b String>) -> Vec<&'a str> {
+/// Converts a NMEA String into a collection of strings. No copies are made.
+pub fn nmea_str_to_vec<'a, 'b: 'a>(data: impl Into<&'b String>) -> Vec<&'a str> {
     let items: Vec<&str> = data
         .into()
         .split(',')
-        .map(|v| v.split('*').nth(0).unwrap_or(v)) // strip * from the end
+        .flat_map(|v| {
+            v.split('*')
+        })
         .collect();
     items
 }
@@ -894,8 +903,8 @@ pub struct Pubx03SatData {
     pub azimuth: Option<u16>,
     /// Satellite elevation, range 00..90 (degrees)
     pub elevation: Option<u16>,
-    /// Signal to noise ratio, range 00..55 (dBHz)
-    pub snr: u8,
+    /// Signal strength (C/N0, range 0-99), blank when not tracking
+    pub snr: Option<u8>,
     /// Satellite carrier lock time, range 00..64
     ///     0 = code lock only
     ///     64 = lock for 64 seconds or more
@@ -911,7 +920,7 @@ impl GpsDataFromNmeaString for Pubx03Data {
 
     fn from_nmea_str(data: impl Into<String>) -> Result<Self::Output, NMEAError> {
         // All fields
-        const FIELD_COUNT: usize = 3;
+        const FIELD_COUNT: usize = 4;
         let data: String = data.into();
         // Example: "$PUBX,03,00*1C\r\n"
         let items = nmea_str_to_vec(&data);
@@ -924,21 +933,21 @@ impl GpsDataFromNmeaString for Pubx03Data {
                 } else {
                     let sat_count = items[2].parse::<usize>()?;
                     const SAT_DATA_FIELD_COUNT: usize = 6;
-                    let actual_field_count = FIELD_COUNT + sat_count * SAT_DATA_FIELD_COUNT;
-                    if items.len() < actual_field_count {
+                    let actual_field_count = FIELD_COUNT + (sat_count * SAT_DATA_FIELD_COUNT);
+                    if items.len() != actual_field_count {
                         return Err(NMEAError::InvalidData(
-                            format!("PUBX03 sentence is not {FIELD_COUNT} fields in length, got {}", items.len()).to_string(),
+                            format!("PUBX03 sentence is not {actual_field_count} fields in length, got {}", items.len()).to_string(),
                         ));
                     }
                     let mut satellites = Vec::with_capacity(sat_count);
                     for i in 0..sat_count {
-                        let offset = 3 + i * SAT_DATA_FIELD_COUNT;
+                        let offset = (FIELD_COUNT-1) + (i * SAT_DATA_FIELD_COUNT);
                         satellites.push(Pubx03SatData {
                             prn: items[offset].parse::<u16>()?,
                             status: items[offset+1].chars().next().unwrap_or_default() == 'U',
                             azimuth: items[offset+2].parse::<u16>().ok(),
                             elevation: items[offset+3].parse::<u16>().ok(),
-                            snr: items[offset+4].parse::<u8>()?,
+                            snr: items[offset+4].parse::<u8>().ok(),
                             lock_time: items[offset+5].parse::<u8>()?,
                         })
                     }

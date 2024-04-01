@@ -25,7 +25,32 @@ enum GPSPacket {
     NMEA(NMEASentenceType),
     NMEAUnsupported(String, NMEAError),
     Unsupported(Vec<u8>, String),
+    NMEAPartialStart(String),
+    NMEAPartial(String),
+    NMEAPartialEnd(String),
 }
+
+impl GPSPacket {
+    pub fn new(bytes: &[u8]) -> Self {
+        match NMEASentence::from_bytes(&bytes) {
+            Ok(ns) => match ns.data() {
+                Ok(nst) => GPSPacket::NMEA(nst),
+                Err(e) => GPSPacket::NMEAUnsupported(ns.inner, e),
+            },
+            Err(NMEAError::PartialStart(s)) => Self::NMEAPartialStart(s),
+            Err(NMEAError::Partial(s)) => Self::NMEAPartial(s),
+            Err(NMEAError::PartialEnd(s)) => Self::NMEAPartialEnd(s),
+            Err(NMEAError::InvalidMode(s)) => Self::Unsupported(bytes.to_vec(), s),
+            Err(NMEAError::InvalidData(s)) => {
+                match ubx::PacketHeader::from_bytes(&bytes) {
+                    Ok(p) => Self::Ubx(p),
+                    Err(e) => Self::Unsupported(bytes.to_vec(), e.to_string()),
+                }
+            },
+        }
+    }
+}
+
 #[derive(Debug, Default)]
 pub struct GPSDevice {
     /// Port name string similar to "/dev/ttyACM0"
@@ -163,10 +188,12 @@ impl GPSDevice {
                 );
                 let data = cfg_msg_pkt.data(true);
                 port.write_all(data.as_slice()).unwrap();
-                println!("Sent CFG message: {:02X?}", data);
+                //println!("Sent CFG message: {:02X?}", data);
                 // TODO: Verify we got ACK messages from the GPS
             }
 
+            let mut partial_sentence = String::new();
+            let mut partial_complete = false;
             loop {
                 // Detect if we should shutdown
                 if shutdown_thread.load(std::sync::atomic::Ordering::Relaxed) {
@@ -178,29 +205,13 @@ impl GPSDevice {
                     Ok(size) if size == 0 => break,
                     // Successfully read some bytes
                     Ok(size) => {
-                        let data = &buffer[..size];
-                        // TODO: Clean this up, a lot of this should be moved to GPSPacket
-                        // Check if this is a UBX message
-                        let packet = match ubx::PacketHeader::from_bytes(&data) {
-                            Ok(packet_header) => GPSPacket::Ubx(packet_header),
-                            Err(_e) => {
-                                // This is not a UBX message, more than likely its a NMEA statement
-                                // TODO: Clean this up, a lot of this should be moved to NMEASentence
-                                match String::from_utf8(data.to_vec()) {
-                                    Ok(nmea_str) => match NMEASentence::from_bytes(&data) {
-                                        Ok(ns) => match ns.data() {
-                                            Ok(nst) => GPSPacket::NMEA(nst),
-                                            Err(e) => GPSPacket::NMEAUnsupported(nmea_str, e),
-                                        },
-                                        Err(e) => GPSPacket::NMEAUnsupported(nmea_str, e),
-                                    },
-                                    Err(e) => {
-                                        // We failed to convert the bytes to a string
-                                        GPSPacket::Unsupported(data.to_vec(), e.to_string())
-                                    }
-                                }
-                            }
+                        let data = if partial_complete {
+                            partial_complete = false;
+                            partial_sentence.as_str().as_bytes()
+                        } else {
+                            &buffer[..size]
                         };
+                        let packet = GPSPacket::new(&data);
                         // Parse the packet
                         match &packet {
                             GPSPacket::NMEA(nmea) => match nmea {
@@ -208,6 +219,7 @@ impl GPSDevice {
                                     gps_info.write().unwrap().update_from_nmea_sentence(nmea);
                                 }
                                 NMEASentenceType::PUBX03(data) => {
+                                    println!("PUBX03: {data:#?}");
                                     gps_info.write().unwrap().update_from_nmea_sentence(nmea);
                                 }
                                 NMEASentenceType::PUBX04(data) => {
@@ -220,8 +232,17 @@ impl GPSDevice {
                                 println!("Unsupported: {data:?} {e}")
                             }
                             GPSPacket::NMEAUnsupported(data, e) => {
-                                println!("Unsupported: {data:?} {e:?}")
+                                println!("Unsupported NMEA: {data:?} {e:?}")
                             }
+                            GPSPacket::NMEAPartialStart(s) => {
+                                partial_sentence = s.to_owned();
+                                partial_complete = false;
+                            },
+                            GPSPacket::NMEAPartial(s) => partial_sentence.push_str(s),
+                            GPSPacket::NMEAPartialEnd(s) => {
+                                partial_sentence.push_str(s);
+                                partial_complete = true;
+                            },
                         }
                         //println!("GPSInfo: {:?}", gps_info.read().unwrap());
                     }
@@ -297,7 +318,7 @@ mod tests {
         for _ in 0..10 {
             std::thread::sleep(Duration::from_millis(1000));
             let info = gps_device.get_info();
-            println!("{info:#?}");
+            println!("{info:?}");
         }
         gps_device.close().unwrap();
     }
