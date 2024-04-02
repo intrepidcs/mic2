@@ -311,9 +311,16 @@ impl NeoVIMIC {
         }
     }
 
-    pub fn gps_open(&self) -> Result<()> {
+    pub fn gps_open(&self) -> Result<bool> {
         match &self.gps {
             Some(gps) => gps.open(),
+            None => panic!("GPS device isn't available"),
+        }
+    }
+
+    pub fn gps_is_open(&self) -> Result<bool> {
+        match &self.gps {
+            Some(gps) => Ok(gps.is_open()),
             None => panic!("GPS device isn't available"),
         }
     }
@@ -327,14 +334,14 @@ impl NeoVIMIC {
 
     pub fn gps_info(&self) -> Result<GPSInfo> {
         match &self.gps {
-            Some(gps) => Ok(gps.get_info()),
+            Some(gps) => gps.get_info(),
             None => panic!("GPS device isn't available"),
         }
     }
 
     pub fn gps_has_lock(&self) -> Result<bool> {
         match &self.gps {
-            Some(gps) => Ok(gps.has_lock()),
+            Some(gps) => gps.has_lock(),
             None => panic!("GPS device isn't available"),
         }
     }

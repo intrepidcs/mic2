@@ -138,13 +138,15 @@ impl PyGPSDevice {
 
     #[getter]
     fn get_info(&self, py: Python) -> PyResult<PyGPSInfo> {
-        let info = self.0.lock().unwrap().get_info();
-        Ok(PyGPSInfo::from(&info))
+        match self.0.lock().unwrap().get_info() {
+            Ok(i) => Ok(PyGPSInfo::from(&i)),
+            Err(e) => panic!("{}", e),
+        }
     }
 
     #[getter]
     fn has_lock(&self) -> PyResult<bool> {
-        Ok(self.0.lock().unwrap().has_lock())
+        Ok(self.0.lock().unwrap().has_lock().unwrap())
     }
 }
 

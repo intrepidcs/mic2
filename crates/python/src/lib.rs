@@ -124,7 +124,7 @@ impl PyNeoVIMIC {
         Ok(self.0.lock().unwrap().audio_save(fname).unwrap())
     }
 
-    fn gps_open(&self) -> PyResult<()> {
+    fn gps_open(&self) -> PyResult<bool> {
         Ok(self.0.lock().unwrap().gps_open().unwrap())
     }
 

@@ -1,4 +1,4 @@
-use std::{borrow::BorrowMut, time::Duration};
+use std::{borrow::BorrowMut, cell::RefCell, sync::{atomic::{AtomicBool, Ordering}, mpsc, Arc, Condvar, Mutex, RwLock}, time::Duration};
 
 use crate::{
     nmea::{
@@ -65,9 +65,10 @@ pub struct GPSDevice {
     pub pid: u16,
     /// baudrate of the port, typically UBLOX_DEFAULT_BAUD
     baud_rate: u32,
-    thread: std::cell::RefCell<Option<std::thread::JoinHandle<()>>>,
-    shutdown_thread: std::sync::Arc<std::sync::atomic::AtomicBool>,
-    gps_info: std::sync::Arc<std::sync::RwLock<GPSInfo>>,
+    thread: RefCell<Option<std::thread::JoinHandle<()>>>,
+    shutdown_thread: Arc<AtomicBool>,
+    gps_info: Arc<RwLock<GPSInfo>>,
+    is_open: Arc<AtomicBool>,
 }
 
 impl Drop for GPSDevice {
@@ -114,6 +115,7 @@ impl GPSDevice {
                             gps_info: std::sync::Arc::new(std::sync::RwLock::new(
                                 GPSInfo::default(),
                             )),
+                            is_open: Arc::new(AtomicBool::new(false)),
                         })
                     } else {
                         None
@@ -137,17 +139,21 @@ impl GPSDevice {
         }
     }
 
-    pub fn open(&self) -> Result<()> {
+    pub fn open(&self) -> Result<bool> {
         // Nothing to do if already open
         if self.thread.borrow().is_some() {
-            return Ok(());
+            return Ok(self.is_open.load(std::sync::atomic::Ordering::Relaxed));
         }
         // create the thread
         let port_name = self.port_name.clone();
         let baud_rate = self.baud_rate;
         let shutdown_thread = self.shutdown_thread.clone();
         let gps_info = self.gps_info.clone();
+        let is_open = self.is_open.clone();
+        let (tx, rx) = mpsc::channel();
         *self.thread.borrow_mut() = Some(std::thread::spawn(move || {
+            is_open.store(false, Ordering::SeqCst);
+            // We notify the condvar that the value has changed.
             // Open the port
             println!("Opening port {}", port_name);
             let mut port = serialport::new(&port_name, baud_rate)
@@ -198,6 +204,8 @@ impl GPSDevice {
 
             let mut partial_sentence = String::new();
             let mut partial_complete = false;
+            is_open.store(true, Ordering::Relaxed);
+            tx.send(()).unwrap();
             loop {
                 // Detect if we should shutdown
                 if shutdown_thread.load(std::sync::atomic::Ordering::Relaxed) {
@@ -224,7 +232,7 @@ impl GPSDevice {
                                         gps_info.write().unwrap().update_from_nmea_sentence(nmea);
                                     }
                                     NMEASentenceType::PUBX03(data) => {
-                                        println!("PUBX03: {data:?}");
+                                        //println!("PUBX03: {data:?}");
                                         gps_info.write().unwrap().update_from_nmea_sentence(nmea);
                                     }
                                     NMEASentenceType::PUBX04(data) => {
@@ -266,8 +274,11 @@ impl GPSDevice {
                     }
                 }
             }
+            is_open.store(false, Ordering::Relaxed);
+            tx.send(()).unwrap();
         }));
-        Ok(())
+        rx.recv().unwrap();
+        Ok(self.is_open.load(std::sync::atomic::Ordering::Relaxed))
     }
 
     /// Close the GPS connection.
@@ -280,21 +291,31 @@ impl GPSDevice {
         self.shutdown_thread
             .clone()
             .borrow_mut()
-            .store(true, std::sync::atomic::Ordering::Relaxed);
+            .store(true, Ordering::Relaxed);
         self.thread.borrow_mut().take().unwrap().join().unwrap();
         Ok(())
     }
 
+    pub fn is_open(&self) -> bool {
+        self.is_open.load(std::sync::atomic::Ordering::Relaxed)
+    }
+
     /// Returns the current GPS Info. See [GPSInfo] for more info. Port should be open first.
-    pub fn get_info(&self) -> GPSInfo {
-        self.gps_info.read().unwrap().clone()
+    pub fn get_info(&self) -> Result<GPSInfo> {
+        if !self.is_open() {
+            return Err(std::io::Error::new(std::io::ErrorKind::NotConnected, "Serial Port not open").into());
+        }
+        Ok(self.gps_info.read().unwrap().clone())
     }
 
     /// Returns true if the GPS has a fix. False if it does not.
-    pub fn has_lock(&self) -> bool {
+    pub fn has_lock(&self) -> Result<bool> {
+        if !self.is_open() {
+            return Err(std::io::Error::new(std::io::ErrorKind::NotConnected, "Serial Port not open").into());
+        }
         match &self.gps_info.read().unwrap().nav_stat {
-            Some(GpsNavigationStatus::NoFix) => false,
-            _ => true,
+            Some(GpsNavigationStatus::NoFix) => Ok(false),
+            _ => Ok(true),
         }
     }
 }
