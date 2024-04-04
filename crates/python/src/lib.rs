@@ -1,6 +1,6 @@
+pub mod gps;
 pub mod usb;
 pub mod utils;
-pub mod gps;
 
 use std::sync::{Arc, Mutex};
 
@@ -9,7 +9,7 @@ use pyo3::prelude::*;
 use neovi_mic_rs::mic::{find_neovi_mics, NeoVIMIC};
 use usb::PyUsbDeviceInfo;
 
-use gps::{PyGPSInfo, PyGPSDMS};
+use gps::{PyGPSDMS, PyGPSInfo, PyGPSSatInfo};
 
 use crate::utils::create_python_object;
 
@@ -77,7 +77,13 @@ impl PyNeoVIMIC {
     }
 
     fn get_usb_extra_info(&self) -> Vec<PyUsbDeviceInfo> {
-        self.0.lock().unwrap().get_usb_extra_info().iter().map(|info| PyUsbDeviceInfo::from(info)).collect()
+        self.0
+            .lock()
+            .unwrap()
+            .get_usb_extra_info()
+            .iter()
+            .map(|info| PyUsbDeviceInfo::from(info))
+            .collect()
     }
 
     fn io_open(&self) -> PyResult<()> {
@@ -160,6 +166,7 @@ fn neovi_mic(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PyUsbDeviceInfo>()?;
     m.add_class::<PyGPSInfo>()?;
     m.add_class::<PyGPSDMS>()?;
+    m.add_class::<PyGPSSatInfo>()?;
     m.add_function(wrap_pyfunction!(find, m)?)?;
     Ok(())
 }

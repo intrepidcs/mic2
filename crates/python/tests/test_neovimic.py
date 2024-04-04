@@ -67,7 +67,24 @@ class TestNeoVIMIC(unittest.TestCase):
         self.assertEqual(dms.degrees, 0)
         self.assertEqual(dms.minutes, 0)
         self.assertEqual(dms.seconds, 0)
-        
+        self.assertEqual(str(dms), "0° 0' 0\"")
+        self.assertEqual(repr(dms), "<PyGPSDMS 0° 0' 0\">")
+
+    def test_gps_sat_info(self):
+        gps_sat_info = neovi_mic.GPSSatInfo()
+        self.assertEqual(gps_sat_info.prn, 0)
+        self.assertEqual(gps_sat_info.used, False)
+        self.assertEqual(gps_sat_info.lock_time, 0)
+        with self.assertRaises(ValueError):
+            gps_sat_info.azimuth
+        with self.assertRaises(ValueError):
+            gps_sat_info.elevation
+        with self.assertRaises(ValueError):
+            gps_sat_info.snr
+        gps_sat_info_str = f"prn: {gps_sat_info.prn}, used: false, azimuth: None, elevation: None, snr: None, lock_time: {gps_sat_info.lock_time}"
+        self.assertEqual(str(gps_sat_info), gps_sat_info_str)
+        self.assertEqual(repr(gps_sat_info), f"<PyGPSSatInfo {gps_sat_info_str}>")
+
     def test_gps(self):
         try:
             dms = neovi_mic.GPSDMS()
@@ -77,8 +94,11 @@ class TestNeoVIMIC(unittest.TestCase):
 
             self.assertEqual(self.mic.gps_is_open(), False)
             self.mic.gps_open()
-            time.sleep(6)
-            info = self.mic.gps_info()
+            start = time.time()
+            while start - time.time() < 5:
+                info = self.mic.gps_info()
+                print(info.satellites(), info.current_time, info.lattitude(), info.longitude())
+                time.sleep(0.1)
             self.assertEqual(self.mic.gps_is_open(), True)
         finally:
             pass #self.mic.gps_close()

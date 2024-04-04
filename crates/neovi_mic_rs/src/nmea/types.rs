@@ -1,6 +1,5 @@
 ///! NMEA data types
 // https://gpsd.gitlab.io/gpsd/NMEA.html
-
 use chrono::{NaiveDate, NaiveDateTime, NaiveTime};
 use std::{
     fmt,
@@ -246,7 +245,7 @@ pub enum GgaQualityIndicator {
 }
 
 /// GPS Degrees Minutes Seconds
-/// 
+///
 /// This object is dumb, it doesn't have any awareness of North/South or East/West or Negative numbers.
 #[derive(Clone, Debug, Default, Copy, PartialEq)]
 pub struct GPSDMS {
@@ -257,7 +256,7 @@ pub struct GPSDMS {
 
 impl std::fmt::Display for GPSDMS {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}°{}'{}\"", self.degrees, self.minutes, self.seconds)
+        write!(f, "{}° {}' {}\"", self.degrees, self.minutes, self.seconds)
     }
 }
 
@@ -275,10 +274,11 @@ fn round_f64(f: f64, p: i32, round_up: bool) -> f64 {
 }
 
 impl GPSDMS {
-
     pub fn new(degrees: u16, minutes: u8, seconds: u8) -> Self {
         Self {
-            degrees, minutes, seconds
+            degrees,
+            minutes,
+            seconds,
         }
     }
     /// Creates a new [GPSDMS] from a string directly from NMEA sentences
@@ -286,7 +286,7 @@ impl GPSDMS {
     /// 4404.14036
     /// ```
     /// use neovi_mic_rs::nmea::types::GPSDMS;
-    /// 
+    ///
     /// let dms = GPSDMS::from_nmea_str("3888.97").unwrap();
     /// println!("{dms:#?} {}", dms.to_decimal());
     /// assert!((dms.to_decimal() - 38.8897).abs() < f64::EPSILON, "{} is not approximately equal to {}", dms.to_decimal(), 38.8897);
@@ -305,9 +305,9 @@ impl GPSDMS {
                 format!("Couldn't convert value {} into a valid GPS DMS", &dd_mm).into(),
             ));
         }
-        let seconds: u8 = (values[1].parse::<f64>()?/100.0*60.0) as u8;
-        let minutes: u8 = values[0][values[0].len()-2..].parse::<u8>()?;
-        let degrees: u16 = values[0][..values[0].len()-2].parse::<u16>()?;
+        let seconds: u8 = (values[1].parse::<f64>()? / 100.0 * 60.0) as u8;
+        let minutes: u8 = values[0][values[0].len() - 2..].parse::<u8>()?;
+        let degrees: u16 = values[0][..values[0].len() - 2].parse::<u16>()?;
 
         Ok(Self {
             degrees,
@@ -317,11 +317,11 @@ impl GPSDMS {
     }
 
     /// Create a new [GPSDMS] from a decimal degree
-    /// 
+    ///
     /// Example:
     /// ```
     /// use neovi_mic_rs::nmea::types::GPSDMS;
-    /// 
+    ///
     /// let dms = GPSDMS::from_decimal(38.8897_f64);
     /// println!("{dms:#?} {}", dms.to_decimal());
     /// assert!((dms.to_decimal() - 38.8897).abs() < 1.0e-4, "{} is not approximately equal to {}", dms.to_decimal(), 38.8897);
@@ -336,20 +336,20 @@ impl GPSDMS {
         Self {
             degrees,
             minutes,
-            seconds, 
+            seconds,
         }
     }
 
     /// Converts DMS to Decimal degrees
-    /// 
+    ///
     /// Example:
     /// ```
     /// use neovi_mic_rs::nmea::types::GPSDMS;
-    /// 
+    ///
     /// let latitude_dms = GPSDMS { degrees: 38, minutes: 53, seconds: 23 };
     /// let latitude_decimal = latitude_dms.to_decimal();
     /// assert!((latitude_decimal - 38.5323).abs() < 1.0e-4, "{} is not approximately equal to {}", latitude_decimal, 38.5323);
-    /// 
+    ///
     /// let longitude_dms = GPSDMS { degrees: 77, minutes: 00, seconds: 32 };
     /// let longitude_decimal = longitude_dms.to_decimal();
     /// assert!((longitude_decimal - 77.0032).abs() < 1.0e-4, "{} is not approximately equal to {}", longitude_decimal, 77.0032);
@@ -359,11 +359,10 @@ impl GPSDMS {
         let mut degrees: f64 = self.degrees.into();
         let minutes = self.minutes as f64 + (self.seconds as f64 / 60.0);
         //minutes = (minutes * 1000000.0).round() / 1000000.0;
-        degrees +=  minutes / 60.0;
+        degrees += minutes / 60.0;
         degrees = round_f64(degrees, p, false);
         degrees
     }
-
 }
 
 pub trait GpsDataFromNmeaString {
@@ -395,13 +394,7 @@ pub struct GstData {
 
 /// Converts a NMEA String into a collection of strings. No copies are made.
 pub fn nmea_str_to_vec<'a, 'b: 'a>(data: impl Into<&'b String>) -> Vec<&'a str> {
-    let items: Vec<&str> = data
-        .into()
-        .split(',')
-        .flat_map(|v| {
-            v.split('*')
-        })
-        .collect();
+    let items: Vec<&str> = data.into().split(',').flat_map(|v| v.split('*')).collect();
     items
 }
 
@@ -542,7 +535,7 @@ impl GpsDataFromNmeaString for GsaData {
                             } else {
                                 None
                             }
-                        }
+                        },
                     })
                 }
             }
@@ -555,18 +548,18 @@ impl GpsDataFromNmeaString for GsaData {
 }
 
 /// Describes the sky position of a UPS satellite in view. Typically they’re shipped in a group of 2 or 3.
-/// 
-/// Note: Some GPS receivers may emit more than 12 quadruples (more than three GPGSV sentences), even though 
+///
+/// Note: Some GPS receivers may emit more than 12 quadruples (more than three GPGSV sentences), even though
 /// NMEA-0813 doesn’t allow this. (The extras might be WAAS satellites, for example.) Receivers may also
 /// report quads for satellites they aren’t tracking, in which case the SNR field will be null; we don’t
 /// know whether this is formally allowed or not.
-/// 
-/// Note: NMEA 4.10+ systems (u-blox 9, Quectel LCD79) may emit an extra field, Signal ID, just before the 
+///
+/// Note: NMEA 4.10+ systems (u-blox 9, Quectel LCD79) may emit an extra field, Signal ID, just before the
 /// checksum. See the description of Signal ID’s above.
-/// 
-/// Note: $GNGSV uses PRN in field 4. Other $GxGSV use the satellite ID in field 4. Jackson Labs, Quectel, 
+///
+/// Note: $GNGSV uses PRN in field 4. Other $GxGSV use the satellite ID in field 4. Jackson Labs, Quectel,
 /// Telit, and others get this wrong, in various conflicting ways.
-/// 
+///
 #[derive(Clone, Debug, PartialEq)]
 pub struct GsvData {
     /// total number of GSV sentences to be transmitted in this group
@@ -605,26 +598,27 @@ impl GpsDataFromNmeaString for GsvData {
                     ))
                 } else {
                     Ok(GsvData {
-                    total_count: items[1].parse::<u16>().ok(),
-                    count: items[2].parse::<u16>().ok(),
-                    sat_in_view: items[3].parse::<u16>().ok(),
-                    id_or_prn_number: items[4].parse::<u16>().ok(),
-                    elevation: items[5].parse::<i16>().ok(),
-                    azimuth: items[6].parse::<u16>().ok(),
-                    snr: items[7].parse::<u16>().ok(),
-                    system_id: {
-                        if items.len() > FIELD_COUNT {
-                            match items[8].parse::<u32>().ok() {
-                                Some(1u32) => Some(SystemID::GPS),
-                                Some(2u32) => Some(SystemID::GLONASS),
-                                Some(3u32) => Some(SystemID::Galileo),
-                                Some(4u32) => Some(SystemID::BeiDou),
-                                _ => Some(SystemID::Unknown(items[18].to_string())),
+                        total_count: items[1].parse::<u16>().ok(),
+                        count: items[2].parse::<u16>().ok(),
+                        sat_in_view: items[3].parse::<u16>().ok(),
+                        id_or_prn_number: items[4].parse::<u16>().ok(),
+                        elevation: items[5].parse::<i16>().ok(),
+                        azimuth: items[6].parse::<u16>().ok(),
+                        snr: items[7].parse::<u16>().ok(),
+                        system_id: {
+                            if items.len() > FIELD_COUNT {
+                                match items[8].parse::<u32>().ok() {
+                                    Some(1u32) => Some(SystemID::GPS),
+                                    Some(2u32) => Some(SystemID::GLONASS),
+                                    Some(3u32) => Some(SystemID::Galileo),
+                                    Some(4u32) => Some(SystemID::BeiDou),
+                                    _ => Some(SystemID::Unknown(items[18].to_string())),
+                                }
+                            } else {
+                                None
                             }
-                        } else {
-                            None
-                        }
-                    }})
+                        },
+                    })
                 }
             }
             _ => Err(NMEAError::InvalidData(
@@ -638,7 +632,9 @@ impl GpsDataFromNmeaString for GsvData {
 /// These sentences describe the sky position of a UPS satellite in view. Typically they’re shipped in a group of 2 or 3.
 #[repr(transparent)]
 #[derive(Clone, Debug, PartialEq)]
-pub struct GsvDataCollection { pub inner: Vec<GsvData> }
+pub struct GsvDataCollection {
+    pub inner: Vec<GsvData>,
+}
 
 impl GpsDataFromNmeaString for GsvDataCollection {
     type Output = Self;
@@ -660,7 +656,7 @@ impl GpsDataFromNmeaString for GsvDataCollection {
 }
 
 /// Geographic Position - Latitude/Longitude
-/// 
+///
 /// Example: $GNGLL,4404.14012,N,12118.85993,W,001037.00,A,A*67
 #[derive(Clone, Debug, PartialEq)]
 pub struct GllData {
@@ -803,7 +799,7 @@ impl GpsNavigationStatus {
             "TT" => Ok(GpsNavigationStatus::TimeOnly),
             _ => Err(NMEAError::InvalidData(format!(
                 "GpsNavigationStatus::from_str({s}) is not a valid value"
-            )))
+            ))),
         }
     }
 }
@@ -818,7 +814,7 @@ pub struct Pubx00Data {
     pub n: char,
     /// Longitude. See [GPSDMS] for more details
     pub longitude: GPSDMS,
-    /// E/W Indicator, E=east or W=west 
+    /// E/W Indicator, E=east or W=west
     pub e: char,
     /// Altitude above user datum ellipsoid (m)
     pub altitude: f64,
@@ -863,7 +859,11 @@ impl GpsDataFromNmeaString for Pubx00Data {
             "PUBX" => {
                 if items.len() < FIELD_COUNT {
                     Err(NMEAError::InvalidData(
-                        format!("PUBX00 sentence is not {FIELD_COUNT} fields in length, got {}", items.len()).to_string(),
+                        format!(
+                            "PUBX00 sentence is not {FIELD_COUNT} fields in length, got {}",
+                            items.len()
+                        )
+                        .to_string(),
                     ))
                 } else {
                     Ok(Pubx00Data {
@@ -897,7 +897,7 @@ impl GpsDataFromNmeaString for Pubx00Data {
     }
 }
 
-#[derive(Clone, Debug, Copy, PartialEq)]
+#[derive(Clone, Debug, Default, Copy, PartialEq)]
 pub struct Pubx03SatData {
     /// Satellite PRN number
     pub prn: u16,
@@ -905,7 +905,7 @@ pub struct Pubx03SatData {
     ///     - Not used
     ///     U Used in solution
     ///     e Ephemeris available, but not used for navigation
-    pub status: bool,
+    pub used: bool,
     /// Satellite azimuth, range 000..359 (degrees)
     pub azimuth: Option<u16>,
     /// Satellite elevation, range 00..90 (degrees)
@@ -917,9 +917,22 @@ pub struct Pubx03SatData {
     ///     64 = lock for 64 seconds or more
     pub lock_time: u8,
 }
+
+impl std::fmt::Display for Pubx03SatData {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "prn: {}, used: {}, azimuth: {:?}, elevation: {:?}, snr: {:?}, lock_time: {}",
+            self.prn, self.used, self.azimuth, self.elevation, self.snr, self.lock_time
+        )
+    }
+}
+
+pub type GPSSatInfo = Pubx03SatData;
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct Pubx03Data {
-    pub satellites: Vec<Pubx03SatData>,
+    pub satellites: Vec<GPSSatInfo>,
 }
 
 impl GpsDataFromNmeaString for Pubx03Data {
@@ -935,7 +948,11 @@ impl GpsDataFromNmeaString for Pubx03Data {
             "PUBX" => {
                 if items.len() < FIELD_COUNT {
                     Err(NMEAError::InvalidData(
-                        format!("PUBX03 sentence is not {FIELD_COUNT} fields in length, got {}", items.len()).to_string(),
+                        format!(
+                            "PUBX03 sentence is not {FIELD_COUNT} fields in length, got {}",
+                            items.len()
+                        )
+                        .to_string(),
                     ))
                 } else {
                     let sat_count = items[2].parse::<usize>()?;
@@ -948,18 +965,18 @@ impl GpsDataFromNmeaString for Pubx03Data {
                     }
                     let mut satellites = Vec::with_capacity(sat_count);
                     for i in 0..sat_count {
-                        let offset = (FIELD_COUNT-1) + (i * SAT_DATA_FIELD_COUNT);
+                        let offset = (FIELD_COUNT - 1) + (i * SAT_DATA_FIELD_COUNT);
                         satellites.push(Pubx03SatData {
                             prn: items[offset].parse::<u16>()?,
-                            status: items[offset+1].chars().next().unwrap_or_default() == 'U',
-                            azimuth: items[offset+2].parse::<u16>().ok(),
-                            elevation: items[offset+3].parse::<u16>().ok(),
-                            snr: items[offset+4].parse::<u8>().ok(),
-                            lock_time: items[offset+5].parse::<u8>()?,
+                            used: items[offset + 1].chars().next().unwrap_or_default() == 'U',
+                            azimuth: items[offset + 2].parse::<u16>().ok(),
+                            elevation: items[offset + 3].parse::<u16>().ok(),
+                            snr: items[offset + 4].parse::<u8>().ok(),
+                            lock_time: items[offset + 5].parse::<u8>()?,
                         })
                     }
                     Ok(Pubx03Data {
-                        satellites: satellites
+                        satellites: satellites,
                     })
                 }
             }
@@ -970,7 +987,6 @@ impl GpsDataFromNmeaString for Pubx03Data {
         Ok(result)
     }
 }
-
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Pubx04Data {
@@ -1010,7 +1026,11 @@ impl GpsDataFromNmeaString for Pubx04Data {
             "PUBX" => {
                 if items.len() < FIELD_COUNT {
                     Err(NMEAError::InvalidData(
-                        format!("PUBX04 sentence is not {FIELD_COUNT} fields in length, got {}", items.len()).to_string(),
+                        format!(
+                            "PUBX04 sentence is not {FIELD_COUNT} fields in length, got {}",
+                            items.len()
+                        )
+                        .to_string(),
                     ))
                 } else {
                     Ok(Pubx04Data {
@@ -1018,7 +1038,10 @@ impl GpsDataFromNmeaString for Pubx04Data {
                         current_date: NaiveDate::parse_from_str(&items[3], "%d%m%y").ok(),
                         time_of_week: items[4].parse::<f64>()?,
                         week_number: items[5].parse::<u16>().ok(),
-                        leap_seconds: Some((items[6].replace('D', "").parse::<u8>()?, items[6].contains('D'))),
+                        leap_seconds: Some((
+                            items[6].replace('D', "").parse::<u8>()?,
+                            items[6].contains('D'),
+                        )),
                         clock_bias: items[7].parse::<f64>()?,
                         clock_drift: items[8].parse::<f64>()?,
                         timepulse_granularity: items[9].parse::<f64>()?,
@@ -1085,15 +1108,13 @@ impl fmt::Display for NMEASentenceType {
     }
 }
 
-type GpsSatInfo = Pubx03SatData;
-
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct GPSInfo {
     // UTC Time, Current time
     pub current_time: Option<NaiveDateTime>,
     /// Latitude. See [GPSDMS] for more details. N/S Indicator, N=north or S=south
     pub latitude: Option<(GPSDMS, char)>,
-    /// Longitude. See [GPSDMS] for more details. E/W Indicator, E=east or W=west 
+    /// Longitude. See [GPSDMS] for more details. E/W Indicator, E=east or W=west
     pub longitude: Option<(GPSDMS, char)>,
     /// Altitude above user datum ellipsoid (m)
     pub altitude: Option<f64>,
@@ -1118,7 +1139,7 @@ pub struct GPSInfo {
     /// TDOP, Time dilution of precision
     pub tdop: Option<f64>,
     /// Number of GPS/GLONASS/Beidou satellites
-    pub satellites: Vec<GpsSatInfo>,
+    pub satellites: Vec<GPSSatInfo>,
     /// Receiver clock bias (ns)
     pub clock_bias: Option<f64>,
     /// Receiver clock drift (ns/s)
@@ -1134,7 +1155,11 @@ impl GPSInfo {
                 // We can only get the current time and not the date from this sentence. Lets fill it in with Local time from the host
                 // Until we get a date from the GPS.
                 if self.current_time.is_none() && data.current_time.is_some() {
-                    self.current_time = Some(chrono::Utc::now().date_naive().and_time(data.current_time.unwrap()));
+                    self.current_time = Some(
+                        chrono::Utc::now()
+                            .date_naive()
+                            .and_time(data.current_time.unwrap()),
+                    );
                 }
                 self.latitude = Some((data.latitude, data.n));
                 self.longitude = Some((data.longitude, data.e));
@@ -1149,22 +1174,24 @@ impl GPSInfo {
                 self.hdop = Some(data.hdop);
                 self.vdop = Some(data.vdop);
                 self.tdop = Some(data.tdop);
-            },
+            }
             NMEASentenceType::PUBX03(data) => {
                 self.satellites = data.satellites.clone();
-            },
+            }
             NMEASentenceType::PUBX04(data) => {
                 match (data.current_date, data.current_time) {
                     (Some(date), Some(time)) => {
                         self.current_time = Some(date.and_time(time));
-                    },
-                    _ => {},
+                    }
+                    _ => {}
                 }
                 self.clock_bias = Some(data.clock_bias);
                 self.clock_drift = Some(data.clock_drift);
                 self.timepulse_granularity = Some(data.timepulse_granularity);
-            },
-            _ => { panic!("Unsupported sentence: {sentence:?}") }
+            }
+            _ => {
+                panic!("Unsupported sentence: {sentence:?}")
+            }
         }
     }
 }
@@ -1195,9 +1222,15 @@ mod tests {
             assert_eq!(new_dms.minutes, dms.minutes);
             assert_eq!(new_dms.seconds, dms.seconds);
             let abs = (new_dms.to_decimal(3) - degree).abs();
-            assert!(abs < f64::EPSILON, "{} is not approximately equal to {} ({} -- {})", new_dms.to_decimal(3), degree, abs, f64::EPSILON);
+            assert!(
+                abs < f64::EPSILON,
+                "{} is not approximately equal to {} ({} -- {})",
+                new_dms.to_decimal(3),
+                degree,
+                abs,
+                f64::EPSILON
+            );
         }
-
 
         let nmea_str_map: HashMap<&str, GPSDMS> = HashMap::from([
             ("0000.00", GPSDMS::new(0, 0, 0)),
@@ -1218,7 +1251,14 @@ mod tests {
             assert_eq!(new_dms.minutes, dms.minutes);
             assert_eq!(new_dms.seconds, dms.seconds);
             let abs = (new_dms.to_decimal(3) - degree).abs();
-            assert!(abs < f64::EPSILON, "{} is not approximately equal to {} ({} -- {})", new_dms.to_decimal(3), degree, abs, f64::EPSILON);
+            assert!(
+                abs < f64::EPSILON,
+                "{} is not approximately equal to {} ({} -- {})",
+                new_dms.to_decimal(3),
+                degree,
+                abs,
+                f64::EPSILON
+            );
         }
 
         /*
@@ -1228,6 +1268,4 @@ mod tests {
         assert!((dms.to_decimal() - 38.8897).abs() < f64::EPSILON, "{} is not approximately equal to {}", dms.to_decimal(), 38.8897);
         */
     }
-
-    
 }

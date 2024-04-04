@@ -245,7 +245,7 @@ impl GPSDevice {
                                     }
                                     _ => panic!("Unsupported sentence: {nmea:?}"),
                                 },
-                                GPSPacket::Ubx(packet) => println!("Received: {:#?}", packet),
+                                GPSPacket::Ubx(_packet) => {} //println!("Received: {:#?}", packet),
                                 GPSPacket::Unsupported(data, e) => {
                                     println!("Unsupported: {data:?} {e}")
                                 }
