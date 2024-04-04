@@ -84,9 +84,9 @@ impl NMEASentence {
         // Split the raw data into a vec
         let items = nmea_str_to_vec(&self.inner);
         let result = match &items[0][0..] {
-            "$GPGST" => Ok(NMEASentenceType::GST(GstData::from_nmea_str(&self.inner)?)),
-            "$GPGSA" => Ok(NMEASentenceType::GSA(GsaData::from_nmea_str(&self.inner)?)),
-            "$GPGSV" => Ok(NMEASentenceType::GSV(GsvDataCollection::from_nmea_str(
+            "$GNGST" | "$GPGST" => Ok(NMEASentenceType::GST(GstData::from_nmea_str(&self.inner)?)),
+            "$GNGSA" | "$GPGSA" => Ok(NMEASentenceType::GSA(GsaData::from_nmea_str(&self.inner)?)),
+            "$GNGSV" | "$GPGSV" => Ok(NMEASentenceType::GSV(GsvDataCollection::from_nmea_str(
                 &self.inner,
             )?)),
             // "GLL" => Ok(NMEASentenceType::GLL(GllData::from_nmea_str(&self.inner)?)),

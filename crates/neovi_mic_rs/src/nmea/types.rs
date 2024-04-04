@@ -404,7 +404,7 @@ impl GpsDataFromNmeaString for GstData {
 
     fn from_nmea_str(data: impl Into<String>) -> Result<Self::Output, NMEAError> {
         // All fields including the checksum
-        const FIELD_COUNT: usize = 9;
+        const FIELD_COUNT: usize = 10;
         let data: String = data.into();
         let items = nmea_str_to_vec(&data);
         let result = match &items[0][3..] {
@@ -494,7 +494,7 @@ impl GpsDataFromNmeaString for GsaData {
 
     fn from_nmea_str(data: impl Into<String>) -> Result<Self::Output, NMEAError> {
         // All fields including the checksum
-        const FIELD_COUNT: usize = 18;
+        const FIELD_COUNT: usize = 19;
         let data: String = data.into();
         let items = nmea_str_to_vec(&data);
         // Note: NMEA 4.1+ systems (u-blox 9, Quectel LCD79) may emit an extra field, System ID, just before the checksum.
@@ -639,7 +639,7 @@ impl GpsDataFromNmeaString for GsvDataCollection {
 
     fn from_nmea_str(data: impl Into<String>) -> Result<Self::Output, NMEAError> {
         // All fields including the checksum
-        const FIELD_COUNT: usize = 8;
+        const FIELD_COUNT: usize = 9;
         let data: String = data.into();
         let mut gsv_items = Vec::new();
         // GSV messages have a lot of individual $GxGSV messages seperated by a space
