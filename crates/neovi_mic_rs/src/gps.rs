@@ -356,10 +356,10 @@ mod tests {
     fn test() {
         let gps_device: GPSDevice = GPSDevice::find_first().expect("Expected at least one device!");
         gps_device.open().unwrap();
-        for _ in 0..10 {
+        for _ in 0..1000 {
             std::thread::sleep(Duration::from_millis(1000));
-            let info = gps_device.get_info();
-            println!("{info:?}");
+            let info = gps_device.get_info().unwrap();
+            println!("Has Fix: {:?}\nSats: {:?}\nInfo: {:?}", gps_device.has_lock(), &info.satellites.len(), &info, info.h_acc);
         }
         gps_device.close().unwrap();
     }

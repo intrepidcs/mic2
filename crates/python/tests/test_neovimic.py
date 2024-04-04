@@ -87,28 +87,25 @@ class TestNeoVIMIC(unittest.TestCase):
 
     def test_gps(self):
         try:
-            dms = neovi_mic.GPSDMS()
-            self.assertEqual(dms.degrees, 0)
-            self.assertEqual(dms.minutes, 0)
-            self.assertEqual(dms.seconds, 0)
-
             self.assertEqual(self.mic.gps_is_open(), False)
             self.mic.gps_open()
             self.assertEqual(self.mic.gps_is_open(), True)
             start = time.time()
-            while (time.time() - start) < 5:
+            while (time.time() - start) < 1000:
                 if self.mic.gps_has_lock():
                     info = self.mic.gps_info()
-                    print(info.satellites(), info.current_time, info.lattitude(), info.longitude())
+                    used_count = 0
+                    for sat in info.satellites():
+                        if sat.used:
+                            used_count += 1
+                    print(f"Sats: {used_count}/{len(info.satellites())}, Time: {info.current_time} lat: {str(info.latitude())}, long: {str(info.longitude())}")
+                    print(f"{info.sog_kmh:.2f}Km/h\taltitude: {info.altitude}m\th_acc: {info.h_acc}m\tv_acc: {info.v_acc}m\n")
                 else:
                     print("No GPS Lock")
                 time.sleep(1)
             
         finally:
             pass #self.mic.gps_close()
-
-        
-    
 
 if __name__ == '__main__':
     unittest.main()
