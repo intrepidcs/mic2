@@ -1,8 +1,7 @@
 use std::sync::{Arc, Mutex};
 use pyo3::prelude::*;
 
-use neovi_mic_rs::nmea::types::GPSInfo;
-use neovi_mic_rs::gps::GPSDevice;
+use neovi_mic_rs::nmea::types::{GPSInfo, GPSDMS};
 
 use crate::utils::create_python_object;
 
@@ -37,8 +36,16 @@ impl PyGPSInfo {
         Ok(current_time.to_object(py))
     }
 
-    // TODO: latitude
-    // TODO: longitude
+    fn latitude(&self) -> PyResult<(PyGPSDMS, char)> {
+        let (dms, dir) = self.0.lock().unwrap().latitude.unwrap();
+        Ok((PyGPSDMS::from(dms), dir))
+    }
+
+    fn longitude(&self) -> PyResult<(PyGPSDMS, char)> {
+        let (dms, dir) = self.0.lock().unwrap().longitude.unwrap();
+        Ok((PyGPSDMS::from(dms), dir))
+    }
+
     // TODO: nav_stat
     // TODO: satellites
 
@@ -116,9 +123,10 @@ impl PyGPSInfo {
     }
 }
 
-create_python_object!(PyGPSDevice, "GPSDevice", GPSDevice);
+
+create_python_object!(PyGPSDMS, "GPSDMS", GPSDMS);
 #[pymethods]
-impl PyGPSDevice {
+impl PyGPSDMS {
     #[new]
     fn py_new() -> Self {
         Self {
@@ -127,35 +135,36 @@ impl PyGPSDevice {
     }
 
     fn __str__(&self) -> String {
-        let description = "GPSDevice TODO!"; // = &self.0.lock().unwrap().to_string();
+        let description = format!("PyGPSDMS {}", self.0.lock().unwrap().to_string());
         format!("{description}").to_string()
     }
 
     fn __repr__(&self) -> String {
         let description = self.__str__();
-        format!("<GPSDevice {description}>").to_string()
+        format!("<PyGPSDMS {description}>").to_string()
     }
 
     #[getter]
-    fn get_info(&self, py: Python) -> PyResult<PyGPSInfo> {
-        match self.0.lock().unwrap().get_info() {
-            Ok(i) => Ok(PyGPSInfo::from(&i)),
-            Err(e) => panic!("{}", e),
-        }
+    fn degrees(&self) -> u16 {
+        self.0.lock().unwrap().degrees
     }
 
     #[getter]
-    fn has_lock(&self) -> PyResult<bool> {
-        Ok(self.0.lock().unwrap().has_lock().unwrap())
+    fn minutes(&self) -> u8 {
+        self.0.lock().unwrap().minutes
     }
+
+    #[getter]
+    fn seconds(&self) -> u8 {
+        self.0.lock().unwrap().seconds
+    }
+
 }
 
-/*
-impl PyGPSDevice {
-    pub fn from(gps_device: GPSDevice) -> Self {
+impl PyGPSDMS {
+    pub fn from(gps_dms: GPSDMS) -> Self {
         Self {
-            0: Arc::new(Mutex::new(gps_device.to_owned())),
+            0: Arc::new(Mutex::new(gps_dms.to_owned())),
         }
     }
 }
-*/

@@ -6,7 +6,10 @@ class TestNeoVIMIC(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         import os; print(os.getpid())
-        cls.mic = neovi_mic.find()[0]
+        try:
+            cls.mic = neovi_mic.find()[0]
+        except IndexError:
+            raise RuntimeError("ERROR: No NeoVI MIC2s found...")
 
     def test_finder(self):
         self.assertIsInstance(self.mic.get_serial_number(), str)
@@ -58,6 +61,28 @@ class TestNeoVIMIC(unittest.TestCase):
             # Always make sure we disable the buzzer, its annoying when left on.
             self.mic.io_buzzer_enable(False)
             self.mic.io_close()
+
+    def test_gps_dms(self):
+        dms = neovi_mic.GPSDMS()
+        self.assertEqual(dms.degrees, 0)
+        self.assertEqual(dms.minutes, 0)
+        self.assertEqual(dms.seconds, 0)
+        
+    def test_gps(self):
+        try:
+            dms = neovi_mic.GPSDMS()
+            self.assertEqual(dms.degrees, 0)
+            self.assertEqual(dms.minutes, 0)
+            self.assertEqual(dms.seconds, 0)
+
+            self.assertEqual(self.mic.gps_is_open(), False)
+            self.mic.gps_open()
+            time.sleep(6)
+            info = self.mic.gps_info()
+            self.assertEqual(self.mic.gps_is_open(), True)
+        finally:
+            pass #self.mic.gps_close()
+
         
     
 

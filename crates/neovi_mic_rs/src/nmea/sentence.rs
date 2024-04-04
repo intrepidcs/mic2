@@ -1,6 +1,6 @@
 use super::types::{
-    nmea_str_to_vec, GgaData, GllData, GpsDataFromNmeaString, GsaData, GstData, GsvDataCollection,
-    NMEAError, NMEASentenceType, Pubx00Data, Pubx03Data, Pubx04Data, RmcData, VtgData,
+    nmea_str_to_vec, GpsDataFromNmeaString, GsaData, GstData, GsvDataCollection,
+    NMEAError, NMEASentenceType, Pubx00Data, Pubx03Data, Pubx04Data
 };
 
 /// Represents a GPS NMEA Sentence

@@ -1,7 +1,7 @@
 ///! NMEA data types
 // https://gpsd.gitlab.io/gpsd/NMEA.html
 
-use chrono::{Datelike, NaiveDate, NaiveDateTime, NaiveTime};
+use chrono::{NaiveDate, NaiveDateTime, NaiveTime};
 use std::{
     fmt,
     num::{ParseFloatError, ParseIntError},
@@ -248,11 +248,17 @@ pub enum GgaQualityIndicator {
 /// GPS Degrees Minutes Seconds
 /// 
 /// This object is dumb, it doesn't have any awareness of North/South or East/West or Negative numbers.
-#[derive(Clone, Debug, Copy, PartialEq)]
+#[derive(Clone, Debug, Default, Copy, PartialEq)]
 pub struct GPSDMS {
     pub degrees: u16,
     pub minutes: u8,
     pub seconds: u8,
+}
+
+impl std::fmt::Display for GPSDMS {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}°{}'{}\"", self.degrees, self.minutes, self.seconds)
+    }
 }
 
 /// Round a f64 to p decimal places
@@ -637,18 +643,19 @@ pub struct GsvDataCollection { pub inner: Vec<GsvData> }
 impl GpsDataFromNmeaString for GsvDataCollection {
     type Output = Self;
 
-    fn from_nmea_str(data: impl Into<String>) -> Result<Self::Output, NMEAError> {
-        // All fields including the checksum
-        const FIELD_COUNT: usize = 9;
-        let data: String = data.into();
-        let mut gsv_items = Vec::new();
-        // GSV messages have a lot of individual $GxGSV messages seperated by a space
-        // Example: $GPGSV,3,1,11,03,03,111,00,04,15,270,00,06,01,010,00,13,06,292,00*74 $GPGSV,3,2,11,14,25,170,00,16,57,208,39,18,67,296,40,19,40,246,00*74 $GPGSV,3,3,11,22,42,067,42,24,14,311,43,27,05,244,00,,,,*4D
-        for gsv_data in data.split(" ").collect::<Vec<&str>>() {
-            let gsv = GsvData::from_nmea_str(gsv_data)?;
-            gsv_items.push(gsv);
-        }
-        Ok(GsvDataCollection { inner: gsv_items })
+    fn from_nmea_str(_data: impl Into<String>) -> Result<Self::Output, NMEAError> {
+        unimplemented!();
+        // // All fields including the checksum
+        // const FIELD_COUNT: usize = 9;
+        // let data: String = data.into();
+        // let mut gsv_items = Vec::new();
+        // // GSV messages have a lot of individual $GxGSV messages seperated by a space
+        // // Example: $GPGSV,3,1,11,03,03,111,00,04,15,270,00,06,01,010,00,13,06,292,00*74 $GPGSV,3,2,11,14,25,170,00,16,57,208,39,18,67,296,40,19,40,246,00*74 $GPGSV,3,3,11,22,42,067,42,24,14,311,43,27,05,244,00,,,,*4D
+        // for gsv_data in data.split(" ").collect::<Vec<&str>>() {
+        //     let gsv = GsvData::from_nmea_str(gsv_data)?;
+        //     gsv_items.push(gsv);
+        // }
+        // Ok(GsvDataCollection { inner: gsv_items })
     }
 }
 

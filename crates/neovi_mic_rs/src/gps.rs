@@ -1,9 +1,17 @@
-use std::{borrow::BorrowMut, cell::RefCell, sync::{atomic::{AtomicBool, Ordering}, mpsc, Arc, Condvar, Mutex, RwLock}, time::Duration};
+use std::{
+    borrow::BorrowMut,
+    cell::RefCell,
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        mpsc, Arc, RwLock,
+    },
+    time::Duration,
+};
 
 use crate::{
     nmea::{
         sentence::NMEASentence,
-        types::{GPSDMS, GPSInfo, GpsNavigationStatus, NMEAError, NMEASentenceType},
+        types::{GPSInfo, GpsNavigationStatus, NMEAError, NMEASentenceType},
     },
     types::{Error, Result},
     ubx,
@@ -43,11 +51,9 @@ impl GPSPacket {
                 Err(NMEAError::Partial(s)) => Self::NMEAPartial(s),
                 Err(NMEAError::PartialEnd(s)) => Self::NMEAPartialEnd(s),
                 Err(NMEAError::InvalidMode(s)) => Self::Unsupported(bytes.to_vec(), s),
-                Err(NMEAError::InvalidData(s)) => {
-                    match ubx::PacketHeader::from_bytes(&bytes) {
-                        Ok(p) => Self::Ubx(p),
-                        Err(e) => Self::Unsupported(bytes.to_vec(), e.to_string()),
-                    }
+                Err(NMEAError::InvalidData(_)) => match ubx::PacketHeader::from_bytes(&bytes) {
+                    Ok(p) => Self::Ubx(p),
+                    Err(e) => Self::Unsupported(bytes.to_vec(), e.to_string()),
                 },
             });
         }
@@ -228,14 +234,13 @@ impl GPSDevice {
                         for packet in packets {
                             match &packet {
                                 GPSPacket::NMEA(nmea) => match nmea {
-                                    NMEASentenceType::PUBX00(data) => {
+                                    NMEASentenceType::PUBX00(_) => {
                                         gps_info.write().unwrap().update_from_nmea_sentence(nmea);
                                     }
-                                    NMEASentenceType::PUBX03(data) => {
-                                        //println!("PUBX03: {data:?}");
+                                    NMEASentenceType::PUBX03(_) => {
                                         gps_info.write().unwrap().update_from_nmea_sentence(nmea);
                                     }
-                                    NMEASentenceType::PUBX04(data) => {
+                                    NMEASentenceType::PUBX04(_) => {
                                         gps_info.write().unwrap().update_from_nmea_sentence(nmea);
                                     }
                                     _ => panic!("Unsupported sentence: {nmea:?}"),
@@ -250,12 +255,12 @@ impl GPSDevice {
                                 GPSPacket::NMEAPartialStart(s) => {
                                     partial_sentence = s.to_owned();
                                     partial_complete = false;
-                                },
+                                }
                                 GPSPacket::NMEAPartial(s) => partial_sentence.push_str(s),
                                 GPSPacket::NMEAPartialEnd(s) => {
                                     partial_sentence.push_str(s);
                                     partial_complete = true;
-                                },
+                                }
                             }
                         }
                         //println!("GPSInfo: {:?}", gps_info.read().unwrap());
@@ -275,7 +280,7 @@ impl GPSDevice {
                 }
             }
             is_open.store(false, Ordering::Relaxed);
-            tx.send(()).unwrap();
+            //tx.send(()).unwrap();
         }));
         rx.recv().unwrap();
         Ok(self.is_open.load(std::sync::atomic::Ordering::Relaxed))
@@ -303,7 +308,11 @@ impl GPSDevice {
     /// Returns the current GPS Info. See [GPSInfo] for more info. Port should be open first.
     pub fn get_info(&self) -> Result<GPSInfo> {
         if !self.is_open() {
-            return Err(std::io::Error::new(std::io::ErrorKind::NotConnected, "Serial Port not open").into());
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::NotConnected,
+                "Serial Port not open",
+            )
+            .into());
         }
         Ok(self.gps_info.read().unwrap().clone())
     }
@@ -311,7 +320,11 @@ impl GPSDevice {
     /// Returns true if the GPS has a fix. False if it does not.
     pub fn has_lock(&self) -> Result<bool> {
         if !self.is_open() {
-            return Err(std::io::Error::new(std::io::ErrorKind::NotConnected, "Serial Port not open").into());
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::NotConnected,
+                "Serial Port not open",
+            )
+            .into());
         }
         match &self.gps_info.read().unwrap().nav_stat {
             Some(GpsNavigationStatus::NoFix) => Ok(false),

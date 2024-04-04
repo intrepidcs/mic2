@@ -179,14 +179,6 @@ impl PacketHeader {
         }
         (ck_a, ck_b)
     }
-
-    fn verify_checksum(&self) -> Result<()> {
-        let checksum = self.checksum();
-        if checksum.0 != self.ck_a || checksum.1 != self.ck_b {
-            return Err(Error::InvalidChecksum);
-        }
-        Ok(())
-    }
 }
 
 /// 24 UBX Class IDs

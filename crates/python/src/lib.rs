@@ -9,7 +9,7 @@ use pyo3::prelude::*;
 use neovi_mic_rs::mic::{find_neovi_mics, NeoVIMIC};
 use usb::PyUsbDeviceInfo;
 
-use gps::PyGPSInfo;
+use gps::{PyGPSInfo, PyGPSDMS};
 
 use crate::utils::create_python_object;
 
@@ -132,6 +132,14 @@ impl PyNeoVIMIC {
         Ok(self.0.lock().unwrap().gps_close().unwrap())
     }
 
+    fn gps_is_open(&self) -> PyResult<bool> {
+        Ok(self.0.lock().unwrap().gps_is_open().unwrap())
+    }
+
+    fn gps_has_lock(&self) -> PyResult<bool> {
+        Ok(self.0.lock().unwrap().gps_has_lock().unwrap())
+    }
+
     fn gps_info(&self) -> PyResult<PyGPSInfo> {
         Ok(PyGPSInfo::from(&self.0.lock().unwrap().gps_info().unwrap()))
     }
@@ -147,11 +155,11 @@ impl PyNeoVIMIC {
 
 /// A Python module implemented in Rust.
 #[pymodule]
-fn neovi_mic(_py: Python, m: &PyModule) -> PyResult<()> {
+fn neovi_mic(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PyNeoVIMIC>()?;
     m.add_class::<PyUsbDeviceInfo>()?;
     m.add_class::<PyGPSInfo>()?;
-    //m.add_class::<PyGPSDevice>()?;
+    m.add_class::<PyGPSDMS>()?;
     m.add_function(wrap_pyfunction!(find, m)?)?;
     Ok(())
 }
