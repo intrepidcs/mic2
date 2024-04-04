@@ -94,12 +94,16 @@ class TestNeoVIMIC(unittest.TestCase):
 
             self.assertEqual(self.mic.gps_is_open(), False)
             self.mic.gps_open()
-            start = time.time()
-            while start - time.time() < 5:
-                info = self.mic.gps_info()
-                print(info.satellites(), info.current_time, info.lattitude(), info.longitude())
-                time.sleep(0.1)
             self.assertEqual(self.mic.gps_is_open(), True)
+            start = time.time()
+            while (time.time() - start) < 5:
+                if self.mic.gps_has_lock():
+                    info = self.mic.gps_info()
+                    print(info.satellites(), info.current_time, info.lattitude(), info.longitude())
+                else:
+                    print("No GPS Lock")
+                time.sleep(1)
+            
         finally:
             pass #self.mic.gps_close()
 

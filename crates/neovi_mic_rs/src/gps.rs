@@ -328,7 +328,8 @@ impl GPSDevice {
         }
         match &self.gps_info.read().unwrap().nav_stat {
             Some(GpsNavigationStatus::NoFix) => Ok(false),
-            _ => Ok(true),
+            Some(_) => Ok(true),
+            _ => Ok(false),
         }
     }
 }
