@@ -4,10 +4,22 @@
     "version": "2.0.0",
     "tasks": [
         {
-            "label": "Maturin Develop",
+            "label": "Python Virtual Environment + Maturin Setup",
             "type": "shell",
-            "command": "./util/maturin.sh",
+            "command": "rm -Rf .venv; python -m venv .venv; source .venv/bin/activate; pip install maturin patchelf",
             "problemMatcher": [],
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": true,
+                "panel": "new",
+                "showReuseMessage": false,
+                "clear": true,
+                "close": true,
+            },
+            "runOptions": {
+                "runOn": "folderOpen"
+            }
         }
     ]
 }
