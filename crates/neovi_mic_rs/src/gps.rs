@@ -359,7 +359,7 @@ mod tests {
         for _ in 0..1000 {
             std::thread::sleep(Duration::from_millis(1000));
             let info = gps_device.get_info().unwrap();
-            println!("Has Fix: {:?}\nSats: {:?}\nInfo: {:?}", gps_device.has_lock(), &info.satellites.len(), &info, info.h_acc);
+            println!("Has Fix: {:?}\nSats: {:?}\nInfo: {:?}", gps_device.has_lock(), &info.satellites.len(), &info);
         }
         gps_device.close().unwrap();
     }

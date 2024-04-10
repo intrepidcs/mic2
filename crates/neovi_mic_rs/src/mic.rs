@@ -48,7 +48,7 @@ pub struct UsbDeviceInfo {
 }
 
 impl UsbDeviceInfo {
-    pub fn from_rusb_device(device: &rusb::Device<GlobalContext>) -> Self {
+    pub fn from_rusb_device(device: &rusb::Device<GlobalContext>, serial_number: Option<String>) -> Self {
         let device_desc = device.device_descriptor().unwrap();
         let vendor_id = device_desc.vendor_id();
         let product_id = device_desc.product_id();
@@ -58,7 +58,7 @@ impl UsbDeviceInfo {
             bus_number: device.bus_number(),
             address: device.address(),
             device_type: Self::usb_device_type_from_vid_pid(&vendor_id, &product_id),
-            serial_number: None,
+            serial_number: serial_number,
         }
     }
 
@@ -101,7 +101,7 @@ pub fn find_neovi_mics() -> Result<Vec<NeoVIMIC>> {
     // Find all potential neoVI MIC2 USB hubs
     // 0424:2514 Microchip Technology, Inc. (formerly SMSC) USB 2.0 Hub
     for rusb_device in rusb::devices().unwrap().iter() {
-        let device = UsbDeviceInfo::from_rusb_device(&rusb_device);
+        let device = UsbDeviceInfo::from_rusb_device(&rusb_device, None);
         // Are we the hub? 0424:2514 Microchip Technology, Inc. (formerly SMSC) USB 2.0 Hub
         if device.vendor_id == 0x0424 || device.product_id == 0x2514 {
             usb_hubs.push(device);
@@ -125,56 +125,63 @@ pub fn find_neovi_mics() -> Result<Vec<NeoVIMIC>> {
         // to Index 1 of the audio codecs found.
         let audio_devices = match Audio::find_neovi_mic2_audio() {
             Ok(devs) => devs,
-            Err(_e) => Vec::new(),
+            Err(e) => {
+                println!("{}", e);
+                Vec::new()
+            },
         };
-        for device in rusb::devices().unwrap().iter() {
-            let parent = device.get_parent();
-            if parent.is_none() {
-                continue;
+        // Find all devices attached to the hub
+        for device in rusb::devices().unwrap().iter().filter(|d| {
+            // Get the parent of the device, can't proceed if we don't have a parent.
+            match d.get_parent() {
+                Some(parent) => {
+                    UsbDeviceInfo::from_rusb_device(&parent, None) == *usb_hub
+                },
+                None => false,
             }
-            let parent = UsbDeviceInfo::from_rusb_device(&parent.unwrap());
-            if parent == *usb_hub {
-                let mut child: UsbDeviceInfo = UsbDeviceInfo::from_rusb_device(&device);
-                // Match up the UsbDeviceInfo to the proper member
-                match &child.device_type {
-                    UsbDeviceType::MicrochipHub => {}
-                    UsbDeviceType::FT245R => {
-                        io_usb_info = Some(child.clone());
-                        io = IO::from(child.clone()).ok();
-                        // Lets attempt to open the device and get the serial number
-                        let serial_number = match &device.open() {
-                            Ok(handle) => handle
-                                .read_serial_number_string_ascii(&device.device_descriptor().unwrap())
-                                .unwrap(),
-                            Err(e) => {
-                                // Probably an access denied error, udev rules correct?
-                                format!("{e}").into()
-                            }
-                        };
-                        // Recreate the child with serial number.
-                        child = UsbDeviceInfo {
-                            serial_number: Some(serial_number.into()),
-                            ..child.clone()
-                        };
-                    }
-                    UsbDeviceType::GPS => {
-                        gps_usb_info = Some(child.clone());
-                        gps = GPSDevice::find(&child.vendor_id, &child.product_id);
-                    }
-                    UsbDeviceType::Audio => {
-                        audio_usb_info = Some(child.clone());
-                        // See audio_device declaration above for information on how we are
-                        // matching indexes here.
-                        if i < audio_devices.len() {
-                            audio = Some(audio_devices[i].clone());
+        }) {
+            // Grab the USB vendor/product ID of the device, continue if we can't get it.
+            let (vendor_id, product_id) = match device.device_descriptor() {
+                Ok(d) => (d.vendor_id(), d.product_id()),
+                Err(_) => continue,
+            };
+            // match up the VID/PID to a UsbDeviceType
+            match UsbDeviceInfo::usb_device_type_from_vid_pid(&vendor_id, &product_id) {
+                UsbDeviceType::MicrochipHub => {},
+                UsbDeviceType::FT245R => {
+                    // Grab the serial number before we create the UsbDeviceInfo
+                    let serial_number = match &device.open() {
+                        Ok(handle) => handle
+                            .read_serial_number_string_ascii(&device.device_descriptor().unwrap())
+                            .unwrap(),
+                        Err(e) => {
+                            // Probably an access denied error, udev rules correct?
+                            format!("{e}").into()
                         }
-                    }
-                    UsbDeviceType::Unknown => extra_usb_info.push(child.clone()),
-                }
-            }
-        }
+                    };
+                    let usb_info = UsbDeviceInfo::from_rusb_device(&device, Some(serial_number));
+                    io = IO::from(usb_info.clone()).ok();
+                    io_usb_info = Some(usb_info);
+                },
+                UsbDeviceType::GPS => {
+                    gps_usb_info = Some(UsbDeviceInfo::from_rusb_device(&device, None));
+                    gps = GPSDevice::find(&vendor_id, &product_id);
+                },
+                UsbDeviceType::Audio => {
+                    audio_usb_info = Some(UsbDeviceInfo::from_rusb_device(&device, None));
+                    // See audio_device declaration above for information on how we are
+                    // matching indexes here.
+                    audio = match audio_devices.get(i) {
+                        Some(audio_device) => Some(audio_device.clone()),
+                        None => None,
+                    };
+                },
+                UsbDeviceType::Unknown => {
+                    extra_usb_info.push(UsbDeviceInfo::from_rusb_device(&device, None));
+                },
+            };
+        };
         // Create the IO device
-
         devices.push(NeoVIMIC {
             index: i as u32,
             usb_hub: usb_hub.clone(),
@@ -382,6 +389,11 @@ mod tests {
         }
     }
 
+    #[test]
+    fn test_audio() {
+        Audio::find_neovi_mic2_audio().unwrap();
+    }
+    
     #[test]
     fn test_io() {
         let devices = find_neovi_mics().expect("Expected at least one neoVI MIC2!");
