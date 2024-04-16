@@ -6,7 +6,7 @@
         {
             "label": "Python Virtual Environment + Maturin Setup",
             "type": "shell",
-            "command": "rm -Rf .venv; python -m venv .venv; source .venv/bin/activate; pip install maturin patchelf",
+            "command": "rm -Rf .venv; python3 -m venv .venv; source .venv/bin/activate; pip3 install maturin patchelf",
             "problemMatcher": [],
             "presentation": {
                 "echo": true,
@@ -16,6 +16,7 @@
                 "showReuseMessage": false,
                 "clear": true,
                 "close": true,
+                "revealProblems": "onProblem"
             },
             "runOptions": {
                 "runOn": "folderOpen"

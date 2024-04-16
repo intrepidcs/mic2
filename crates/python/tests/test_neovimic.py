@@ -93,7 +93,7 @@ class TestNeoVIMIC(unittest.TestCase):
             start = time.time()
             while (time.time() - start) < 1000:
                 if self.mic.gps_has_lock():
-                    info = self.mic.gps_info()
+                    info: neovi_mic.PyGPSInfo = self.mic.gps_info()
                     used_count = 0
                     for sat in info.satellites():
                         if sat.used:

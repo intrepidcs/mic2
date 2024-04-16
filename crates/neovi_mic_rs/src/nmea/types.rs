@@ -282,6 +282,8 @@ impl GPSDMS {
         }
     }
     /// Creates a new [GPSDMS] from a string directly from NMEA sentences
+    /// Some sentences like U-blox PUBX are in DDMM.MM format where others are
+    /// hhmmss.ss.
     /// Example: ddmm.mm
     /// 4404.14036
     /// ```
@@ -305,9 +307,31 @@ impl GPSDMS {
                 format!("Couldn't convert value {} into a valid GPS DMS", &dd_mm).into(),
             ));
         }
-        let seconds: u8 = (values[1].parse::<f64>()? / 100.0 * 60.0) as u8;
-        let minutes: u8 = values[0][values[0].len() - 2..].parse::<u8>()?;
-        let degrees: u16 = values[0][..values[0].len() - 2].parse::<u16>()?;
+        let (degrees, minutes, seconds) = if values[1].len() <= 2 {
+            // hhmmss.ss
+            let seconds: u8 = (values[1].parse::<f64>()? / 100.0 * 60.0) as u8;
+            let minutes: u8 = values[0][values[0].len() - 2..].parse::<u8>()?;
+            let degrees: u16 = values[0][..values[0].len() - 2].parse::<u16>()?;
+            (degrees, minutes, seconds)
+        } else {
+            // hhmm.mmmm
+            // 31.1.5 Latitude and longitude format
+            // According to the NMEA Standard, Latitude and Longitude are output in the format of Degrees,
+            // Minutes and (Decimal) Fractions of Minutes. To convert to Degrees and Fractions of Degrees, or
+            // Degrees, Minutes, Seconds and Fractions of seconds, the 'Minutes' and 'Fractional Minutes' parts
+            // need to be converted. In other words: If the GPS Receiver reports a Latitude of 4717.112671 North
+            // and Longitude of 00833.914843 East, this is
+            // Latitude 47 Degrees, 17.112671 Minutes
+            // Longitude 8 Degrees, 33.914843 Minutes
+            // or
+            // Latitude 47 Degrees, 17 Minutes, 6.76026 Seconds
+            // Longitude 8 Degrees, 33 Minutes, 54.89058 Seconds
+            let degrees: u16 = dd_mm[..2].parse::<u16>()?;
+            let minutes: f64 = dd_mm[2..].parse::<f64>()?;
+            let seconds: u8 = (minutes - minutes.floor() * 60.0) as u8;
+            let minutes: u8 = minutes as u8;
+            (degrees, minutes, seconds)
+        };
 
         Ok(Self {
             degrees,
@@ -327,6 +351,11 @@ impl GPSDMS {
     /// assert!((dms.to_decimal() - 38.8897).abs() < 1.0e-4, "{} is not approximately equal to {}", dms.to_decimal(), 38.8897);
     /// ```
     pub fn from_decimal(decimal_degrees: f64) -> Self {
+        if decimal_degrees > 90f64 {
+            // ddmm.mmmmm format
+            todo!();
+
+        }
         let degrees = decimal_degrees as u16;
         let mut minutes_f64 = (decimal_degrees - degrees as f64) * 60.0;
         minutes_f64 = round_f64(minutes_f64, 6, true);
@@ -1214,7 +1243,16 @@ mod tests {
             ("47.31", GPSDMS::new(47, 18, 36)),
             ("90.99", GPSDMS::new(90, 59, 24)),
             ("90.995", GPSDMS::new(90, 59, 42)),
+            ("4717.112671", GPSDMS::new(47, 17, 6)),
         ]);
+
+        // need to be converted. In other words: If the GPS Receiver reports a Latitude of 4717.112671 North
+        // and Longitude of 00833.914843 East, this is
+        // Latitude 47 Degrees, 17.112671 Minutes
+        // Longitude 8 Degrees, 33.914843 Minutes
+        // or
+        // Latitude 47 Degrees, 17 Minutes, 6.76026 Seconds
+        // Longitude 8 Degrees, 33 Minutes, 54.89058 Seconds
         for (degree, dms) in &degree_map {
             let degree = degree.parse::<f64>().unwrap();
             let new_dms = GPSDMS::from_decimal(degree);
