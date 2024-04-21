@@ -14,6 +14,3 @@ pub mod audio;
 pub mod io;
 
 pub mod mic;
-
-
-mod api;

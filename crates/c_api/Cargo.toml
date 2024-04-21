@@ -1,0 +1,15 @@
+[package]
+name = "neovi_mic_c_api"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[lib]
+name = "mic2"
+crate-type = ["cdylib", "staticlib"]
+
+[build-dependencies]
+cbindgen = "0.26.0"
+
+[dependencies.neovi_mic_rs]
+path = "../neovi_mic_rs"
