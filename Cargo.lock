@@ -176,6 +176,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "cmake"
+version = "0.1.50"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a31c789563b815f77f4250caee12365734369f942439b7defd71e18a48197130"
+dependencies = [
+ "cc",
+]
+
+[[package]]
 name = "core-foundation-sys"
 version = "0.8.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -437,7 +446,10 @@ name = "neovi_mic_c_api"
 version = "0.1.0"
 dependencies = [
  "cbindgen",
+ "cc",
+ "cmake",
  "neovi_mic_rs",
+ "path-clean",
 ]
 
 [[package]]
@@ -544,6 +556,12 @@ dependencies = [
  "smallvec",
  "windows-targets 0.48.2",
 ]
+
+[[package]]
+name = "path-clean"
+version = "1.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "17359afc20d7ab31fdb42bb844c8b3bb1dabd7dcf7e68428492da7f16966fcef"
 
 [[package]]
 name = "pkg-config"
