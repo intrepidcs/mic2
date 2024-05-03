@@ -13,3 +13,4 @@ target_link_libraries(test_build ftdi1)
 target_link_libraries(test_build /home/drebbe/dev/neovi_mic/target/debug/libmic2.a)
 
 include_directories(/home/drebbe/dev/neovi_mic/target/debug/)
+

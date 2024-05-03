@@ -3,5 +3,5 @@ resolver = "2"
 members = [
     "crates/neovi_mic_rs",
     "crates/python",
-    "crates/c_api",
+    "crates/libmic2",
 ]

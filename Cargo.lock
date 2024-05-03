@@ -340,6 +340,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "libmic2"
+version = "0.1.0"
+dependencies = [
+ "cbindgen",
+ "cc",
+ "cmake",
+ "neovi_mic_rs",
+ "path-clean",
+]
+
+[[package]]
 name = "libudev"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -440,17 +451,6 @@ name = "minimal-lexical"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "68354c5c6bd36d73ff3feceb05efa59b6acb7626617f4962be322a825e61f79a"
-
-[[package]]
-name = "neovi_mic_c_api"
-version = "0.1.0"
-dependencies = [
- "cbindgen",
- "cc",
- "cmake",
- "neovi_mic_rs",
- "path-clean",
-]
 
 [[package]]
 name = "neovi_mic_python"

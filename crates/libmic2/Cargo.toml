@@ -1,5 +1,5 @@
 [package]
-name = "neovi_mic_c_api"
+name = "libmic2"
 version = "0.1.0"
 edition = "2021"
 
