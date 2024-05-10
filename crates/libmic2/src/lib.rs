@@ -1,14 +1,15 @@
 use core::slice;
 use neovi_mic_rs::mic;
 use std::{
-    ffi::CString,
+    ffi::{c_void, CString},
     os::raw::c_char,
     sync::{Arc, Mutex},
 };
 
 // Version of the API in use. This will allow forward compatibility without having to recompile your application, unless otherwise specified.
-const MIC2_API_VERSION: u32 = 0x1;
+pub const MIC2_API_VERSION: u32 = 0x1;
 
+#[derive(Debug, Clone)]
 pub struct NeoVIMICHandle {
     inner: Arc<Mutex<mic::NeoVIMIC>>,
 }
@@ -22,6 +23,7 @@ impl NeoVIMICHandle {
 }
 
 #[repr(C)]
+#[derive(Debug)]
 pub struct NeoVIMIC {
     // API version, must be MIC2_API_VERSION
     pub version: u32,
@@ -30,7 +32,8 @@ pub struct NeoVIMIC {
     // Serial number of the device. Typically in "MCxxxx" format. Null terminated.
     pub serial_number: [std::ffi::c_char; 16],
     // Handle to the device, should always be valid
-    pub handle: *mut NeoVIMICHandle,
+    //pub handle: *mut NeoVIMICHandle,
+    pub handle: *mut c_void,
 }
 
 #[repr(u32)]
@@ -107,43 +110,47 @@ extern "C" fn mic2_error_string(
 ///
 /// @return           NeoVIMICErrTypeSuccess if successful, NeoVIMICErrTypeFailure if not
 #[no_mangle]
-extern "C" fn mic2_find(devices: *mut *mut NeoVIMIC, length: *mut u32) -> NeoVIMICErrType {
-    if !devices.is_null() || length.is_null() {
+extern "C" fn mic2_find(devices: *mut NeoVIMIC, length: *mut u32, api_version: u32, neovi_mic_size: u32) -> NeoVIMICErrType {
+    if devices.is_null() || length.is_null() {
         return NeoVIMICErrType::NeoVIMICErrTypeInvalidParameter;
     }
-
+    // Check if the version is compatible
+    if api_version != MIC2_API_VERSION {
+        return NeoVIMICErrType::NeoVIMICErrTypeVersionMismatch;
+    }
+    // make sure we have enough space
+    if neovi_mic_size < std::mem::size_of::<NeoVIMIC>() as u32 {
+        return NeoVIMICErrType::NeoVIMICErrTypeSizeMismatch;
+    }
     // Find all the attached neovi MIC2s
-    let found_devices = match mic::find_neovi_mics() {
-        Ok(d) => d,
+    let mut found_devices = match mic::find_neovi_mics() {
+        Ok(d) => d
+            .into_iter()
+            .map(|x| NeoVIMICHandle::from(x))
+            .collect::<Vec<NeoVIMICHandle>>(),
         Err(_e) => return NeoVIMICErrType::NeoVIMICErrTypeFailure,
     };
-
     // Set the length of the devices array
     let length = unsafe { &mut *length };
     *length = std::cmp::min(*length, found_devices.len() as u32);
     // Convert the devices array to a mutable slice
-    let devices = unsafe { slice::from_raw_parts_mut(*devices, *length as usize) };
-    //
+    let devices = unsafe { slice::from_raw_parts_mut(devices, *length as usize) };
+    //for i in 0..devices.len() {
     for (i, device) in devices.iter_mut().enumerate() {
-        let dev = &mut *device;
-        // Check if the version is compatible
-        if dev.version != MIC2_API_VERSION {
-            return NeoVIMICErrType::NeoVIMICErrTypeVersionMismatch;
-        }
-        // make sure we have enough space
-        if dev.size < std::mem::size_of::<NeoVIMIC>() as u32 {
-            return NeoVIMICErrType::NeoVIMICErrTypeSizeMismatch;
-        }
+        device.version = api_version;
+        device.size = neovi_mic_size;
         // Copy the serial number over
-        dev.serial_number.fill(0);
-        let sn = CString::new(found_devices[i].get_serial_number()).unwrap();
-        let sn_len = std::cmp::min(sn.as_bytes_with_nul().len(), dev.serial_number.len() - 1);
-        let serial_number_slice = dev.serial_number.as_mut_slice();
+        device.serial_number.fill(0);
+        let sn = CString::new(found_devices[i].inner.lock().unwrap().get_serial_number()).unwrap();
+        let sn_len = std::cmp::min(sn.as_bytes_with_nul().len(), device.serial_number.len() - 1);
+        let serial_number_slice = device.serial_number.as_mut_slice();
         unsafe {
             serial_number_slice[..sn_len]
                 .copy_from_slice(slice::from_raw_parts(sn.as_ptr(), sn_len));
         }
-        device.handle = Box::into_raw(Box::new(NeoVIMICHandle::from(found_devices[i])));
+        // Copy the handle over
+        let found_device = found_devices.swap_remove(i);
+        device.handle = Box::into_raw(Box::new(found_device)) as *mut _;
     }
 
     NeoVIMICErrType::NeoVIMICErrTypeSuccess
@@ -159,10 +166,11 @@ extern "C" fn mic2_io_open(device: *mut NeoVIMIC) -> NeoVIMICErrType {
     if device.is_null() {
         return NeoVIMICErrType::NeoVIMICErrTypeInvalidParameter;
     }
-    let handle = unsafe {
-        Box::from_raw(device.as_ref().unwrap().handle)
+    let neovi_mic = unsafe { 
+        let device = &*device;
+        let handle = &*(device.handle as *mut NeoVIMICHandle);
+        handle.inner.lock().unwrap()
     };
-    let neovi_mic = handle.inner.lock().unwrap();
     match neovi_mic.io_open() {
         Ok(_) => NeoVIMICErrType::NeoVIMICErrTypeSuccess,
         Err(_e) => NeoVIMICErrType::NeoVIMICErrTypeFailure,
@@ -176,13 +184,14 @@ extern "C" fn mic2_io_open(device: *mut NeoVIMIC) -> NeoVIMICErrType {
 /// @return          NeoVIMICErrTypeSuccess if successful, NeoVIMICErrTypeFailure if not
 #[no_mangle]
 extern "C" fn mic2_io_close(device: *mut NeoVIMIC) -> NeoVIMICErrType {
-    if !device.is_null() {
+    if device.is_null() {
         return NeoVIMICErrType::NeoVIMICErrTypeInvalidParameter;
     }
-    let handle = unsafe {
-        Box::from_raw(device.as_ref().unwrap().handle)
+    let neovi_mic = unsafe { 
+        let device = &*device;
+        let handle = &*(device.handle as *mut NeoVIMICHandle);
+        handle.inner.lock().unwrap()
     };
-    let neovi_mic = handle.inner.lock().unwrap();
     match neovi_mic.io_close() {
         Ok(_) => NeoVIMICErrType::NeoVIMICErrTypeSuccess,
         Err(_e) => NeoVIMICErrType::NeoVIMICErrTypeFailure,
@@ -197,15 +206,16 @@ extern "C" fn mic2_io_close(device: *mut NeoVIMIC) -> NeoVIMICErrType {
 /// @return          NeoVIMICErrTypeSuccess if successful, NeoVIMICErrTypeFailure if not
 #[no_mangle]
 extern "C" fn mic2_io_is_open(device: *mut NeoVIMIC, is_open: *mut bool) -> NeoVIMICErrType {
-    if !device.is_null() || is_open.is_null() {
+    if device.is_null() || is_open.is_null() {
         return NeoVIMICErrType::NeoVIMICErrTypeInvalidParameter;
     }
     unsafe { *is_open = false };
 
-    let handle = unsafe {
-        Box::from_raw(device.as_ref().unwrap().handle)
+    let neovi_mic = unsafe { 
+        let device = &*device;
+        let handle = &*(device.handle as *mut NeoVIMICHandle);
+        handle.inner.lock().unwrap()
     };
-    let neovi_mic = handle.inner.lock().unwrap();
     match neovi_mic.io_is_open() {
         Ok(b) => {
             unsafe { *is_open = b };
@@ -223,13 +233,14 @@ extern "C" fn mic2_io_is_open(device: *mut NeoVIMIC, is_open: *mut bool) -> NeoV
 /// @return          NeoVIMICErrTypeSuccess if successful, NeoVIMICErrTypeFailure if not
 #[no_mangle]
 extern "C" fn mic2_io_buzzer_enable(device: *mut NeoVIMIC, enable: bool) -> NeoVIMICErrType {
-    if !device.is_null() {
+    if device.is_null() {
         return NeoVIMICErrType::NeoVIMICErrTypeInvalidParameter;
     }
-    let handle = unsafe {
-        Box::from_raw(device.as_ref().unwrap().handle)
+    let neovi_mic = unsafe { 
+        let device = &*device;
+        let handle = &*(device.handle as *mut NeoVIMICHandle);
+        handle.inner.lock().unwrap()
     };
-    let neovi_mic = handle.inner.lock().unwrap();
     match neovi_mic.io_buzzer_enable(enable) {
         Ok(_) => NeoVIMICErrType::NeoVIMICErrTypeSuccess,
         Err(_e) => NeoVIMICErrType::NeoVIMICErrTypeFailure,
@@ -247,15 +258,16 @@ extern "C" fn mic2_io_buzzer_is_enabled(
     device: *mut NeoVIMIC,
     is_enabled: *mut bool,
 ) -> NeoVIMICErrType {
-    if !device.is_null() || is_enabled.is_null() {
+    if device.is_null() || is_enabled.is_null() {
         return NeoVIMICErrType::NeoVIMICErrTypeInvalidParameter;
     }
     unsafe { *is_enabled = false };
 
-    let handle = unsafe {
-        Box::from_raw(device.as_ref().unwrap().handle)
+    let neovi_mic = unsafe { 
+        let device = &*device;
+        let handle = &*(device.handle as *mut NeoVIMICHandle);
+        handle.inner.lock().unwrap()
     };
-    let neovi_mic = handle.inner.lock().unwrap();
     match neovi_mic.io_buzzer_is_enabled() {
         Ok(b) => {
             unsafe { *is_enabled = b };
@@ -275,7 +287,8 @@ unsafe extern "C" fn mic2_free(device: *mut NeoVIMIC) -> () {
     if device.is_null() {
         return;
     }
-    unsafe {
-        std::mem::drop(Box::from_raw(device.as_ref().unwrap().handle))
+    unsafe { 
+        let device = &*device;
+        std::mem::drop(Box::from_raw(device.handle))
     };
 }

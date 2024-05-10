@@ -23,7 +23,8 @@ fn main() {
         .expect("Unable to generate bindings")
         .write_to_file(&header_path);
 
-    println!("cargo:rerun-if-changed=build.rs");
+        println!("cargo:rerun-if-changed=build.rs");
+        println!("cargo:rerun-if-changed=src/lib.rs");
     println!("cargo:rerun-if-changed=../../Cargo.lock");
     
 

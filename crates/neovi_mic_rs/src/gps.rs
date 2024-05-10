@@ -61,7 +61,7 @@ impl GPSPacket {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct GPSDevice {
     /// Port name string similar to "/dev/ttyACM0"
     pub port_name: String,
@@ -71,10 +71,14 @@ pub struct GPSDevice {
     pub pid: u16,
     /// baudrate of the port, typically UBLOX_DEFAULT_BAUD
     baud_rate: u32,
-    thread: RefCell<Option<std::thread::JoinHandle<()>>>,
-    shutdown_thread: Arc<AtomicBool>,
-    gps_info: Arc<RwLock<GPSInfo>>,
+    /// If set to true, it tells the thread to shutdown.
+    shutdown_thread: Arc<AtomicBool>, 
+    /// thread sets this to true when the thread is running, otherwise false.
+    thread_running: Arc<AtomicBool>,
+    /// Whether the port is open or not
     is_open: Arc<AtomicBool>,
+    gps_info: Arc<RwLock<GPSInfo>>,
+    
 }
 
 impl Drop for GPSDevice {
@@ -114,14 +118,17 @@ impl GPSDevice {
                             vid: upi.vid,
                             pid: upi.pid,
                             baud_rate: UBLOX_DEFAULT_BAUD,
-                            thread: std::cell::RefCell::new(None),
+                            //thread: std::cell::RefCell::new(None),
                             shutdown_thread: std::sync::Arc::new(
                                 std::sync::atomic::AtomicBool::new(false),
                             ),
+                            thread_running: std::sync::Arc::new(
+                                std::sync::atomic::AtomicBool::new(false),
+                            ),
+                            is_open: Arc::new(AtomicBool::new(false)),
                             gps_info: std::sync::Arc::new(std::sync::RwLock::new(
                                 GPSInfo::default(),
                             )),
-                            is_open: Arc::new(AtomicBool::new(false)),
                         })
                     } else {
                         None
@@ -147,17 +154,20 @@ impl GPSDevice {
 
     pub fn open(&self) -> Result<bool> {
         // Nothing to do if already open
-        if self.thread.borrow().is_some() {
-            return Ok(self.is_open.load(std::sync::atomic::Ordering::Relaxed));
+        if self.thread_running.load(Ordering::Relaxed) {
+            return Ok(true);
         }
         // create the thread
         let port_name = self.port_name.clone();
         let baud_rate = self.baud_rate;
         let shutdown_thread = self.shutdown_thread.clone();
-        let gps_info = self.gps_info.clone();
+        let thread_running = self.thread_running.clone();
         let is_open = self.is_open.clone();
+        let gps_info = self.gps_info.clone();
+        
         let (tx, rx) = mpsc::channel();
-        *self.thread.borrow_mut() = Some(std::thread::spawn(move || {
+        let _thread =std::thread::spawn(move || {
+            thread_running.store(true, Ordering::SeqCst);
             is_open.store(false, Ordering::SeqCst);
             // We notify the condvar that the value has changed.
             // Open the port
@@ -280,24 +290,22 @@ impl GPSDevice {
                 }
             }
             is_open.store(false, Ordering::Relaxed);
+            thread_running.store(false, Ordering::SeqCst);
             //tx.send(()).unwrap();
-        }));
+        });
         rx.recv().unwrap();
         Ok(self.is_open.load(std::sync::atomic::Ordering::Relaxed))
     }
 
     /// Close the GPS connection.
     pub fn close(&self) -> Result<()> {
-        // Nothing to do if already closed
-        if self.thread.borrow().is_none() {
-            return Ok(());
-        }
-
         self.shutdown_thread
             .clone()
             .borrow_mut()
             .store(true, Ordering::Relaxed);
-        self.thread.borrow_mut().take().unwrap().join().unwrap();
+        while self.thread_running.load(Ordering::Relaxed) {
+            std::thread::sleep(std::time::Duration::from_millis(3));
+        };
         Ok(())
     }
 

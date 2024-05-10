@@ -3,6 +3,7 @@
         "./crates/neovi_mic_rs/Cargo.toml"
     ],
     "files.associations": {
-        "mic2.h": "c"
+        "mic2.h": "c",
+        "format": "c"
     }
 }

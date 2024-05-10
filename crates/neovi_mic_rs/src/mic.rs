@@ -73,7 +73,7 @@ impl UsbDeviceInfo {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct NeoVIMIC {
     /// Index of the neoVI MIC, starts at 0. 2nd device would be 1.
     pub index: u32,
