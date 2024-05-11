@@ -35,6 +35,12 @@ int main(int argc, char* argv[]) {
     printf("Found %d neoVI MIC2 devices!\n", length);
     // Loop through all the devices found
     for (uint32_t i = 0; i < length; i++) {
+        bool has_gps = false;
+        if ((err = mic2_has_gps(&devices[i], &has_gps)) != NeoVIMICErrTypeSuccess) {
+            return print_error(&err);
+        }
+        printf("Device %s has GPS: %s\n", devices[i].serial_number, has_gps ? "yes" : "no");
+
         printf("Opening IO device %s...\n", devices[i].serial_number);
         if ((err = mic2_io_open(&devices[i])) != NeoVIMICErrTypeSuccess) {
             return print_error(&err);
@@ -169,8 +175,8 @@ bool exercise_io_button(const NeoVIMIC* device) {
  */
 bool exercise_io_gpsled(const NeoVIMIC* device) {
     NeoVIMICErrType err = NeoVIMICErrTypeFailure;
-    // Toggle the buzzer
-    bool success = is_gpsled_enabled(device);
+    // Toggle the GPS LED
+    bool success = !is_gpsled_enabled(device);
     if ((err = mic2_io_gpsled_enable(device, true)) != NeoVIMICErrTypeSuccess) {
         return print_error(&err);
     }
@@ -180,6 +186,6 @@ bool exercise_io_gpsled(const NeoVIMIC* device) {
     if ((err = mic2_io_gpsled_enable(device, false)) != NeoVIMICErrTypeSuccess) {
         return print_error(&err);
     }
-    bool success3 = is_gpsled_enabled(device);
+    bool success3 = !is_gpsled_enabled(device);
     return success && success2 && success3;
 }

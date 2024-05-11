@@ -159,6 +159,28 @@ extern "C" fn mic2_find(devices: *const NeoVIMIC, length: *mut u32, api_version:
     NeoVIMICErrType::NeoVIMICErrTypeSuccess
 }
 
+/// Check if the neoVI MIC2 has GPS functionality.
+///
+/// @param device    Pointer to aNeoVIMIC structs. Returns NeoVIMICErrTypeInvalidParameter if nullptr
+/// @param has_gps   Pointer to a bool. Set to true if has GPS, false if not. Returns NeoVIMICErrTypeInvalidParameter if nullptr
+///
+/// @return          NeoVIMICErrTypeSuccess if successful.
+#[no_mangle]
+extern "C" fn mic2_has_gps(device: *const NeoVIMIC, has_gps: *mut bool) -> NeoVIMICErrType {
+    if device.is_null() || has_gps.is_null() {
+        return NeoVIMICErrType::NeoVIMICErrTypeInvalidParameter;
+    }
+    unsafe { *has_gps = false };
+
+    let neovi_mic = unsafe { 
+        let device = &*device;
+        let handle = &*(device.handle as *mut NeoVIMICHandle);
+        handle.inner.lock().unwrap()
+    };
+    unsafe { *has_gps = neovi_mic.has_gps() };
+    NeoVIMICErrType::NeoVIMICErrTypeSuccess
+}
+
 /// Open the IO interface on the device.
 ///
 /// @param device    Pointer to a NeoVIMIC struct. Returns NeoVIMICErrTypeInvalidParameter if nullptr
