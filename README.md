@@ -48,8 +48,12 @@ sudo udevadm control --reload-rules && sudo udevadm trigger
 
 ### **C/C++**
 
-`TODO: cmake something?`
-
+```bash
+$ mkdir build && cd build
+$ cmake .. -DBUILD_EXAMPLES=on -DCMAKE_BUILD_TYPE=Debug 
+$ make 
+$ ./examples/c/find/example_find_c
+```
 
 ## **Links**
 

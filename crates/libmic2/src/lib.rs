@@ -356,7 +356,7 @@ extern "C" fn mic2_find(devices: *const NeoVIMIC, length: *mut u32, api_version:
 
 /// Check if the neoVI MIC2 has GPS functionality.
 ///
-/// @param device    Pointer to aNeoVIMIC structs. Returns NeoVIMICErrTypeInvalidParameter if nullptr
+/// @param device    Pointer to a NeoVIMIC structs. Returns NeoVIMICErrTypeInvalidParameter if nullptr
 /// @param has_gps   Pointer to a bool. Set to true if has GPS, false if not. Returns NeoVIMICErrTypeInvalidParameter if nullptr
 ///
 /// @return          NeoVIMICErrTypeSuccess if successful.
@@ -399,7 +399,7 @@ extern "C" fn mic2_io_open(device: *const NeoVIMIC) -> NeoVIMICErrType {
 
 /// Close the IO interface on the device.
 ///
-/// @param device    Pointer to aNeoVIMIC structs. Returns NeoVIMICErrTypeInvalidParameter if nullptr
+/// @param device    Pointer to a NeoVIMIC structs. Returns NeoVIMICErrTypeInvalidParameter if nullptr
 ///
 /// @return          NeoVIMICErrTypeSuccess if successful, NeoVIMICErrTypeFailure if not
 #[no_mangle]
@@ -420,7 +420,7 @@ extern "C" fn mic2_io_close(device: *const NeoVIMIC) -> NeoVIMICErrType {
 
 /// Check if the IO interface on the device is open.
 ///
-/// @param device    Pointer to aNeoVIMIC structs. Returns NeoVIMICErrTypeInvalidParameter if nullptr
+/// @param device    Pointer to a NeoVIMIC structs. Returns NeoVIMICErrTypeInvalidParameter if nullptr
 /// @param is_open   Pointer to a bool. Set to true if open, false if not. Returns NeoVIMICErrTypeInvalidParameter if nullptr
 ///
 /// @return          NeoVIMICErrTypeSuccess if successful, NeoVIMICErrTypeFailure if not
@@ -447,7 +447,7 @@ extern "C" fn mic2_io_is_open(device: *const NeoVIMIC, is_open: *mut bool) -> Ne
 
 /// Enable the IO Buzzer on the device.
 ///
-/// @param device    Pointer to aNeoVIMIC structs. Returns NeoVIMICErrTypeInvalidParameter if nullptr
+/// @param device    Pointer to a NeoVIMIC structs. Returns NeoVIMICErrTypeInvalidParameter if nullptr
 /// @param enable   Set to true to enable, false if not.
 ///
 /// @return          NeoVIMICErrTypeSuccess if successful, NeoVIMICErrTypeFailure if not
@@ -469,7 +469,7 @@ extern "C" fn mic2_io_buzzer_enable(device: *const NeoVIMIC, enable: bool) -> Ne
 
 /// Check if the IO Buzzer on the device is enabled.
 ///
-/// @param device    Pointer to aNeoVIMIC structs. Returns NeoVIMICErrTypeInvalidParameter if nullptr
+/// @param device    Pointer to a NeoVIMIC structs. Returns NeoVIMICErrTypeInvalidParameter if nullptr
 /// @param is_enabled   Pointer to a bool. Set to true if enabled, false if not. Returns NeoVIMICErrTypeInvalidParameter if nullptr
 ///
 /// @return          NeoVIMICErrTypeSuccess if successful, NeoVIMICErrTypeFailure if not
@@ -499,7 +499,7 @@ extern "C" fn mic2_io_buzzer_is_enabled(
 
 /// Enable the IO GPS LED on the device.
 ///
-/// @param device    Pointer to aNeoVIMIC structs. Returns NeoVIMICErrTypeInvalidParameter if nullptr
+/// @param device    Pointer to a NeoVIMIC structs. Returns NeoVIMICErrTypeInvalidParameter if nullptr
 /// @param enable   Set to true to enable, false if not.
 ///
 /// @return          NeoVIMICErrTypeSuccess if successful, NeoVIMICErrTypeFailure if not
@@ -521,7 +521,7 @@ extern "C" fn mic2_io_gpsled_enable(device: *const NeoVIMIC, enable: bool) -> Ne
 
 /// Check if the IO GPS LED on the device is enabled.
 ///
-/// @param device    Pointer to aNeoVIMIC structs. Returns NeoVIMICErrTypeInvalidParameter if nullptr
+/// @param device    Pointer to a NeoVIMIC structs. Returns NeoVIMICErrTypeInvalidParameter if nullptr
 /// @param is_enabled   Pointer to a bool. Set to true if enabled, false if not. Returns NeoVIMICErrTypeInvalidParameter if nullptr
 ///
 /// @return          NeoVIMICErrTypeSuccess if successful, NeoVIMICErrTypeFailure if not
@@ -551,7 +551,7 @@ extern "C" fn mic2_io_gpsled_is_enabled(
 
 /// Check if the IO Button on the device is enabled.
 ///
-/// @param device    Pointer to aNeoVIMIC structs. Returns NeoVIMICErrTypeInvalidParameter if nullptr
+/// @param device    Pointer to a NeoVIMIC structs. Returns NeoVIMICErrTypeInvalidParameter if nullptr
 /// @param is_pressed   Pointer to a bool. Set to true if enabled, false if not. Returns NeoVIMICErrTypeInvalidParameter if nullptr
 ///
 /// @return          NeoVIMICErrTypeSuccess if successful, NeoVIMICErrTypeFailure if not
@@ -579,6 +579,12 @@ extern "C" fn mic2_io_button_is_pressed(
     }
 }
 
+/// Starts recording audio on the device asynchronously. Call mic2_audio_stop() to stop recording.
+///
+/// @param device    Pointer to a NeoVIMIC structs. Returns NeoVIMICErrTypeInvalidParameter if nullptr
+/// @param sample_rate   Sample rate in Hz, typically 44100 or 48000
+///
+/// @return          NeoVIMICErrTypeSuccess if successful, NeoVIMICErrTypeFailure if not
 #[no_mangle]
 unsafe extern "C" fn mic2_audio_start(device: *const NeoVIMIC, sample_rate: u32) -> NeoVIMICErrType {
     if device.is_null() {
@@ -598,6 +604,11 @@ unsafe extern "C" fn mic2_audio_start(device: *const NeoVIMIC, sample_rate: u32)
     }
 }
 
+/// Stops recording audio on the device. Call mic2_audio_start() before calling this.
+///
+/// @param device    Pointer to a NeoVIMIC structs. Returns NeoVIMICErrTypeInvalidParameter if nullptr
+///
+/// @return          NeoVIMICErrTypeSuccess if successful, NeoVIMICErrTypeFailure if not
 #[no_mangle]
 unsafe extern "C" fn mic2_audio_stop(device: *const NeoVIMIC) -> NeoVIMICErrType {
     if device.is_null() {
@@ -617,6 +628,12 @@ unsafe extern "C" fn mic2_audio_stop(device: *const NeoVIMIC) -> NeoVIMICErrType
     }
 }
 
+/// Saves recording from the device asynchronously. Typically called after mic2_audio_stop() to save to disk.
+///
+/// @param device    Pointer to a NeoVIMIC structs. Returns NeoVIMICErrTypeInvalidParameter if nullptr
+/// @param path      filepath to save to. File extension determines format. (ie. .wav, .mp3, .ogg, etc)
+///
+/// @return          NeoVIMICErrTypeSuccess if successful, NeoVIMICErrTypeFailure if not
 #[no_mangle]
 unsafe extern "C" fn mic2_audio_save(device: *const NeoVIMIC, path: *const c_char) -> NeoVIMICErrType {
     if device.is_null() {
@@ -662,7 +679,7 @@ extern "C" fn mic2_gps_open(device: *const NeoVIMIC) -> NeoVIMICErrType {
 
 /// Close the GPS interface on the device.
 ///
-/// @param device    Pointer to aNeoVIMIC structs. Returns NeoVIMICErrTypeInvalidParameter if nullptr
+/// @param device    Pointer to a NeoVIMIC structs. Returns NeoVIMICErrTypeInvalidParameter if nullptr
 ///
 /// @return          NeoVIMICErrTypeSuccess if successful, NeoVIMICErrTypeFailure if not
 #[no_mangle]
@@ -683,7 +700,7 @@ extern "C" fn mic2_gps_close(device: *const NeoVIMIC) -> NeoVIMICErrType {
 
 /// Check if the GPS interface on the device is open.
 ///
-/// @param device    Pointer to aNeoVIMIC structs. Returns NeoVIMICErrTypeInvalidParameter if nullptr
+/// @param device    Pointer to a NeoVIMIC structs. Returns NeoVIMICErrTypeInvalidParameter if nullptr
 /// @param is_open   Pointer to a bool. Set to true if open, false if not. Returns NeoVIMICErrTypeInvalidParameter if nullptr
 ///
 /// @return          NeoVIMICErrTypeSuccess if successful, NeoVIMICErrTypeFailure if not
@@ -710,7 +727,7 @@ extern "C" fn mic2_gps_is_open(device: *const NeoVIMIC, is_open: *mut bool) -> N
 
 /// Check if the GPS interface has a lock.
 ///
-/// @param device    Pointer to aNeoVIMIC structs. Returns NeoVIMICErrTypeInvalidParameter if nullptr
+/// @param device    Pointer to a NeoVIMIC structs. Returns NeoVIMICErrTypeInvalidParameter if nullptr
 /// @param has_lock   Pointer to a bool. Set to true if has lock, false if not. Returns NeoVIMICErrTypeInvalidParameter if nullptr
 ///
 /// @return          NeoVIMICErrTypeSuccess if successful, NeoVIMICErrTypeFailure if not
@@ -735,10 +752,20 @@ extern "C" fn mic2_gps_has_lock(device: *const NeoVIMIC, has_lock: *mut bool) ->
     }
 }
 
+/// Retrieve the current GPS info.
+///
+/// @param device    Pointer to a NeoVIMIC structs. Returns NeoVIMICErrTypeInvalidParameter if nullptr
+/// @param info      Pointer to a CGPSInfo struct. Returns NeoVIMICErrTypeInvalidParameter if nullptr
+/// @param info_size Size of the CGPSInfo struct. Returns NeoVIMICErrTypeSizeMismatch if size is smaller than expected.
+/// 
+/// @return          NeoVIMICErrTypeSuccess if successful, NeoVIMICErrTypeFailure if not
 #[no_mangle]
-extern "C" fn mic2_gps_info(device: *const NeoVIMIC, info: *mut CGPSInfo) -> NeoVIMICErrType {
+extern "C" fn mic2_gps_info(device: *const NeoVIMIC, info: *mut CGPSInfo, info_size: usize) -> NeoVIMICErrType {
     if device.is_null() || info.is_null() {
         return NeoVIMICErrType::NeoVIMICErrTypeInvalidParameter;
+    }
+    if info_size < std::mem::size_of::<CGPSInfo>() {
+        return NeoVIMICErrType::NeoVIMICErrTypeSizeMismatch;
     }
     let neovi_mic = unsafe { 
         let device = &*device;
@@ -756,7 +783,7 @@ extern "C" fn mic2_gps_info(device: *const NeoVIMIC, info: *mut CGPSInfo) -> Neo
 
 /// Free the NeoVIMIC object. This must be called when finished otherwise a memory leak will occur.
 ///
-/// @param device    Pointer to aNeoVIMIC structs. Okay to pass a nullptr.
+/// @param device    Pointer to a NeoVIMIC structs. Okay to pass a nullptr.
 ///
 /// @return          None
 #[no_mangle]
