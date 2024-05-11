@@ -105,12 +105,15 @@ extern "C" fn mic2_error_string(
 }
 /// Find all neovi MIC2s.
 ///
-/// @param devices    Pointer to an array of NeoVIMIC structs. Unused devices should be freed using mic2_free() to avoid memory leaks.
-/// @param length     Length of devices. Must not be null, returns NeoVIMICErrTypeInvalidParameter if it is.
+/// @param devices    Pointer to an array of NeoVIMIC structs. These need to be allocated by the caller. 
+///                   Unused devices should be freed using mic2_free() to avoid memory leaks.
+///                   Although this parameter is const, it is still modifed by the function. This is a convinience so all the other 
+///                   function calls don't need a const cast.
+/// @param length     Length of devices. Must not be null, returns NeoVIMICErrTypeInvalidParameter if it is. Set to how many devices are found.
 ///
 /// @return           NeoVIMICErrTypeSuccess if successful, NeoVIMICErrTypeFailure if not
 #[no_mangle]
-extern "C" fn mic2_find(devices: *mut NeoVIMIC, length: *mut u32, api_version: u32, neovi_mic_size: u32) -> NeoVIMICErrType {
+extern "C" fn mic2_find(devices: *const NeoVIMIC, length: *mut u32, api_version: u32, neovi_mic_size: u32) -> NeoVIMICErrType {
     if devices.is_null() || length.is_null() {
         return NeoVIMICErrType::NeoVIMICErrTypeInvalidParameter;
     }
@@ -134,7 +137,7 @@ extern "C" fn mic2_find(devices: *mut NeoVIMIC, length: *mut u32, api_version: u
     let length = unsafe { &mut *length };
     *length = std::cmp::min(*length, found_devices.len() as u32);
     // Convert the devices array to a mutable slice
-    let devices = unsafe { slice::from_raw_parts_mut(devices, *length as usize) };
+    let devices = unsafe { slice::from_raw_parts_mut(devices as *mut NeoVIMIC, *length as usize) };
     //for i in 0..devices.len() {
     for (i, device) in devices.iter_mut().enumerate() {
         device.version = api_version;
@@ -162,7 +165,7 @@ extern "C" fn mic2_find(devices: *mut NeoVIMIC, length: *mut u32, api_version: u
 ///
 /// @return          NeoVIMICErrTypeSuccess if successful, NeoVIMICErrTypeFailure if not
 #[no_mangle]
-extern "C" fn mic2_io_open(device: *mut NeoVIMIC) -> NeoVIMICErrType {
+extern "C" fn mic2_io_open(device: *const NeoVIMIC) -> NeoVIMICErrType {
     if device.is_null() {
         return NeoVIMICErrType::NeoVIMICErrTypeInvalidParameter;
     }
@@ -183,7 +186,7 @@ extern "C" fn mic2_io_open(device: *mut NeoVIMIC) -> NeoVIMICErrType {
 ///
 /// @return          NeoVIMICErrTypeSuccess if successful, NeoVIMICErrTypeFailure if not
 #[no_mangle]
-extern "C" fn mic2_io_close(device: *mut NeoVIMIC) -> NeoVIMICErrType {
+extern "C" fn mic2_io_close(device: *const NeoVIMIC) -> NeoVIMICErrType {
     if device.is_null() {
         return NeoVIMICErrType::NeoVIMICErrTypeInvalidParameter;
     }
@@ -205,7 +208,7 @@ extern "C" fn mic2_io_close(device: *mut NeoVIMIC) -> NeoVIMICErrType {
 ///
 /// @return          NeoVIMICErrTypeSuccess if successful, NeoVIMICErrTypeFailure if not
 #[no_mangle]
-extern "C" fn mic2_io_is_open(device: *mut NeoVIMIC, is_open: *mut bool) -> NeoVIMICErrType {
+extern "C" fn mic2_io_is_open(device: *const NeoVIMIC, is_open: *mut bool) -> NeoVIMICErrType {
     if device.is_null() || is_open.is_null() {
         return NeoVIMICErrType::NeoVIMICErrTypeInvalidParameter;
     }
@@ -232,7 +235,7 @@ extern "C" fn mic2_io_is_open(device: *mut NeoVIMIC, is_open: *mut bool) -> NeoV
 ///
 /// @return          NeoVIMICErrTypeSuccess if successful, NeoVIMICErrTypeFailure if not
 #[no_mangle]
-extern "C" fn mic2_io_buzzer_enable(device: *mut NeoVIMIC, enable: bool) -> NeoVIMICErrType {
+extern "C" fn mic2_io_buzzer_enable(device: *const NeoVIMIC, enable: bool) -> NeoVIMICErrType {
     if device.is_null() {
         return NeoVIMICErrType::NeoVIMICErrTypeInvalidParameter;
     }
@@ -255,7 +258,7 @@ extern "C" fn mic2_io_buzzer_enable(device: *mut NeoVIMIC, enable: bool) -> NeoV
 /// @return          NeoVIMICErrTypeSuccess if successful, NeoVIMICErrTypeFailure if not
 #[no_mangle]
 extern "C" fn mic2_io_buzzer_is_enabled(
-    device: *mut NeoVIMIC,
+    device: *const NeoVIMIC,
     is_enabled: *mut bool,
 ) -> NeoVIMICErrType {
     if device.is_null() || is_enabled.is_null() {
@@ -277,13 +280,95 @@ extern "C" fn mic2_io_buzzer_is_enabled(
     }
 }
 
+/// Enable the IO GPS LED on the device.
+///
+/// @param device    Pointer to aNeoVIMIC structs. Returns NeoVIMICErrTypeInvalidParameter if nullptr
+/// @param enable   Set to true to enable, false if not.
+///
+/// @return          NeoVIMICErrTypeSuccess if successful, NeoVIMICErrTypeFailure if not
+#[no_mangle]
+extern "C" fn mic2_io_gpsled_enable(device: *const NeoVIMIC, enable: bool) -> NeoVIMICErrType {
+    if device.is_null() {
+        return NeoVIMICErrType::NeoVIMICErrTypeInvalidParameter;
+    }
+    let neovi_mic = unsafe { 
+        let device = &*device;
+        let handle = &*(device.handle as *mut NeoVIMICHandle);
+        handle.inner.lock().unwrap()
+    };
+    match neovi_mic.io_gpsled_enable(enable) {
+        Ok(_) => NeoVIMICErrType::NeoVIMICErrTypeSuccess,
+        Err(_e) => NeoVIMICErrType::NeoVIMICErrTypeFailure,
+    }
+}
+
+/// Check if the IO GPS LED on the device is enabled.
+///
+/// @param device    Pointer to aNeoVIMIC structs. Returns NeoVIMICErrTypeInvalidParameter if nullptr
+/// @param is_enabled   Pointer to a bool. Set to true if enabled, false if not. Returns NeoVIMICErrTypeInvalidParameter if nullptr
+///
+/// @return          NeoVIMICErrTypeSuccess if successful, NeoVIMICErrTypeFailure if not
+#[no_mangle]
+extern "C" fn mic2_io_gpsled_is_enabled(
+    device: *const NeoVIMIC,
+    is_enabled: *mut bool,
+) -> NeoVIMICErrType {
+    if device.is_null() || is_enabled.is_null() {
+        return NeoVIMICErrType::NeoVIMICErrTypeInvalidParameter;
+    }
+    unsafe { *is_enabled = false };
+
+    let neovi_mic = unsafe { 
+        let device = &*device;
+        let handle = &*(device.handle as *mut NeoVIMICHandle);
+        handle.inner.lock().unwrap()
+    };
+    match neovi_mic.io_gpsled_is_enabled() {
+        Ok(b) => {
+            unsafe { *is_enabled = b };
+            NeoVIMICErrType::NeoVIMICErrTypeSuccess
+        }
+        Err(_e) => NeoVIMICErrType::NeoVIMICErrTypeFailure,
+    }
+}
+
+/// Check if the IO Button on the device is enabled.
+///
+/// @param device    Pointer to aNeoVIMIC structs. Returns NeoVIMICErrTypeInvalidParameter if nullptr
+/// @param is_pressed   Pointer to a bool. Set to true if enabled, false if not. Returns NeoVIMICErrTypeInvalidParameter if nullptr
+///
+/// @return          NeoVIMICErrTypeSuccess if successful, NeoVIMICErrTypeFailure if not
+#[no_mangle]
+extern "C" fn mic2_io_button_is_pressed(
+    device: *const NeoVIMIC,
+    is_pressed: *mut bool,
+) -> NeoVIMICErrType {
+    if device.is_null() || is_pressed.is_null() {
+        return NeoVIMICErrType::NeoVIMICErrTypeInvalidParameter;
+    }
+    unsafe { *is_pressed = false };
+
+    let neovi_mic = unsafe { 
+        let device = &*device;
+        let handle = &*(device.handle as *mut NeoVIMICHandle);
+        handle.inner.lock().unwrap()
+    };
+    match neovi_mic.io_button_is_pressed() {
+        Ok(b) => {
+            unsafe { *is_pressed = b };
+            NeoVIMICErrType::NeoVIMICErrTypeSuccess
+        }
+        Err(_e) => NeoVIMICErrType::NeoVIMICErrTypeFailure,
+    }
+}
+
 /// Free the NeoVIMIC object. This must be called when finished otherwise a memory leak will occur.
 ///
 /// @param device    Pointer to aNeoVIMIC structs. Okay to pass a nullptr.
 ///
 /// @return          None
 #[no_mangle]
-unsafe extern "C" fn mic2_free(device: *mut NeoVIMIC) -> () {
+unsafe extern "C" fn mic2_free(device: *const NeoVIMIC) -> () {
     if device.is_null() {
         return;
     }

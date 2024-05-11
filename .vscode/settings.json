@@ -4,6 +4,7 @@
     ],
     "files.associations": {
         "mic2.h": "c",
-        "format": "c"
+        "format": "c",
+        "cstdint": "c"
     }
 }
