@@ -1,5 +1,5 @@
 use core::slice;
-use neovi_mic_rs::mic;
+use neovi_mic_rs::{mic, nmea::types::{GPSInfo, GPSSatInfo, GpsNavigationStatus, GPSDMS}};
 use std::{
     ffi::{c_void, CStr, CString},
     os::raw::c_char,
@@ -63,6 +63,201 @@ impl From<u32> for NeoVIMICErrType {
             5 => NeoVIMICErrType::NeoVIMICErrTypeSizeMismatch,
             _ => panic!("Unknown NeoVIMICErrType type: {}", error_type),
         }
+    }
+}
+
+#[repr(C)]
+#[derive(Debug, Default, Clone, PartialEq)]
+pub struct CGPSSatInfo {
+    /// Satellite PRN number
+    pub prn: u16,
+    /// Satellite status
+    ///     - Not used
+    ///     U Used in solution
+    ///     e Ephemeris available, but not used for navigation
+    pub used: bool,
+    /// Satellite azimuth, range 000..359 (degrees), only valid when azimuth_valid is true
+    pub azimuth: u16,
+    pub azimuth_valid: bool,
+    /// Satellite elevation, range 00..90 (degrees), only valid when elevation_valid is true
+    pub elevation: u16,
+    pub elevation_valid: bool,
+    /// Signal strength (C/N0, range 0-99), blank when not tracking, only valid when snr_valid is true
+    pub snr: u8,
+    pub snr_valid: bool,
+    /// Satellite carrier lock time, range 00..64
+    ///     0 = code lock only
+    ///     64 = lock for 64 seconds or more
+    pub lock_time: u8,
+}
+
+impl From<GPSSatInfo> for CGPSSatInfo {
+    fn from(info: GPSSatInfo) -> Self {
+        Self {
+            prn: info.prn,
+            used: info.used,
+            azimuth: info.azimuth.unwrap_or(0),
+            azimuth_valid: info.azimuth.is_some(),
+            elevation: info.elevation.unwrap_or(0),
+            elevation_valid: info.elevation.is_some(),
+            snr: info.snr.unwrap_or(0),
+            snr_valid: info.snr.is_some(),
+            lock_time: info.lock_time,
+        }
+    }
+}
+
+#[repr(u32)]
+#[derive(Clone, Copy)]
+pub enum CGpsNavigationStatus {
+    /// "NF" No Fix
+    NoFix,
+    /// "DR" Dead reckoning only solution
+    DeadReckoningOnly,
+    /// "G2" Stand alone 2D solution
+    StandAlone2D,
+    /// "G3" Stand alone 3D solution
+    StandAlone3D,
+    /// "D2" Differential 2D solution
+    Differential2D,
+    /// "D3" Differential 3D solution
+    Differential3D,
+    /// "RK" Combined GPS + dead reckoning solution
+    CombinedRKGPSDeadReckoning,
+    /// "TT" Time only solution
+    TimeOnly,
+}
+
+impl CGpsNavigationStatus {
+    pub fn from(gps_dms: GpsNavigationStatus) -> Self {
+        match gps_dms {
+            GpsNavigationStatus::NoFix => CGpsNavigationStatus::NoFix,
+            GpsNavigationStatus::DeadReckoningOnly => CGpsNavigationStatus::DeadReckoningOnly,
+            GpsNavigationStatus::StandAlone2D => CGpsNavigationStatus::StandAlone2D,
+            GpsNavigationStatus::StandAlone3D => CGpsNavigationStatus::StandAlone3D,
+            GpsNavigationStatus::Differential2D => CGpsNavigationStatus::Differential2D,
+            GpsNavigationStatus::Differential3D => CGpsNavigationStatus::Differential3D,
+            GpsNavigationStatus::CombinedRKGPSDeadReckoning => CGpsNavigationStatus::CombinedRKGPSDeadReckoning,
+            GpsNavigationStatus::TimeOnly => CGpsNavigationStatus::TimeOnly,
+        }
+    }
+}
+
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct CGPSDMS {
+    pub degrees: u16,
+    pub minutes: u8,
+    pub seconds: u8,
+}
+
+impl From<GPSDMS> for CGPSDMS {
+    fn from(dms: GPSDMS) -> Self {
+        Self {
+            degrees: dms.degrees,
+            minutes: dms.minutes,
+            seconds: dms.seconds,
+        }
+    }
+}
+
+#[repr(C)]
+pub struct CGPSInfo {
+    // UTC Time, Current time as unix timestamp since 00:00, Jan 1 1970 UTC. Zero means invalid.
+    pub current_time: i64,
+    /// Latitude. See [GPSDMS] for more details. Only valid if latitude_valid is true.
+    pub latitude: CGPSDMS,
+    pub latitude_valid: bool,
+    /// N/S Indicator, N=north or S=south
+    pub latitude_direction: c_char,
+    /// Longitude. See [GPSDMS] for more details. Only valid if longitude_valid is true.
+    pub longitude: CGPSDMS,
+    pub longitude_valid: bool,
+    /// E/W Indicator, E=east or W=west
+    pub longitude_direction: c_char,
+    /// Altitude above user datum ellipsoid (m). -1 means invalid.
+    pub altitude: f64,
+    /// Navigation Status. See [GpsNavigationStatus] for more details
+    pub nav_stat: CGpsNavigationStatus,
+    /// Horizontal accuracy estimate. -1 means invalid.
+    pub h_acc: f64,
+    /// Vertical accuracy estimate. -1 means invalid.
+    pub v_acc: f64,
+    /// Speed over ground (km/h). -1 means invalid.
+    pub sog_kmh: f64,
+    /// Course over ground (degrees). -1 means invalid.
+    pub cog: f64,
+    /// Vertical velocity, positive = downward (m/s). -1 means invalid.
+    pub vvel: f64,
+    /// Age of most recent DGPS corrections, empty = none available (s). -1 means invalid.
+    pub age_c: f64,
+    /// HDOP, Horizontal Dilution of Precision. -1 means invalid.
+    pub hdop: f64,
+    /// VDOP, Vertical dilution of precision. -1 means invalid.
+    pub vdop: f64,
+    /// TDOP, Time dilution of precision. -1 means invalid.
+    pub tdop: f64,
+    /// Number of GPS/GLONASS/Beidou satellites. Only valid indexes are defined by satellites_count.
+    pub satellites: [CGPSSatInfo; 16],
+    /// Number of valid GPS/GLONASS/Beidou satellites populated in satellites parameter.
+    pub satellites_count: u8,
+    /// Receiver clock bias (ns). -1 means invalid.
+    pub clock_bias: f64,
+    /// Receiver clock drift (ns/s). -1 means invalid.
+    pub clock_drift: f64,
+    /// Timepulse Granularity, The quantization error of the Timepulse pin (ns). -1 means invalid.
+    pub timepulse_granularity: f64,
+}
+
+impl From<GPSInfo> for CGPSInfo {
+    fn from(gps_info: GPSInfo) -> Self {
+
+        let (lat_dms, lat_dir, lat_valid) = match gps_info.latitude {
+            Some((dms, dir)) => (dms, dir as c_char, true),
+            None => (GPSDMS { degrees: 0, minutes: 0, seconds: 0 }, char::default() as c_char, false),
+        };
+
+        let (long_dms, long_dir, long_valid) = match gps_info.longitude {
+            Some((dms, dir)) => (dms, dir as c_char, true),
+            None => (GPSDMS { degrees: 0, minutes: 0, seconds: 0 }, char::default() as c_char, false),
+        };
+
+        let mut info = CGPSInfo {
+            current_time: match gps_info.current_time {
+                Some(current_time) => current_time.timestamp(),
+                None => 0,
+            },
+            latitude: CGPSDMS::from(lat_dms),
+            latitude_valid: lat_valid,
+            latitude_direction: lat_dir,
+            longitude: CGPSDMS::from(long_dms),
+            longitude_valid: long_valid,
+            longitude_direction: long_dir,
+            altitude: gps_info.altitude.unwrap_or(-1.0),
+            nav_stat: match gps_info.nav_stat {
+                Some(nav_stat) => CGpsNavigationStatus::from(nav_stat),
+                None => CGpsNavigationStatus::from(GpsNavigationStatus::NoFix),
+            },
+            h_acc: gps_info.h_acc.unwrap_or(-1.0),
+            v_acc: gps_info.v_acc.unwrap_or(-1.0),
+            sog_kmh: gps_info.sog_kmh.unwrap_or(-1.0),
+            cog: gps_info.cog.unwrap_or(-1.0),
+            vvel: gps_info.vvel.unwrap_or(-1.0),
+            age_c: gps_info.age_c.unwrap_or(-1.0),
+            hdop: gps_info.hdop.unwrap_or(-1.0),
+            vdop: gps_info.vdop.unwrap_or(-1.0),
+            tdop: gps_info.tdop.unwrap_or(-1.0),
+            satellites: Default::default(),
+            satellites_count: gps_info.satellites.len() as u8,
+            clock_bias: gps_info.clock_bias.unwrap_or(-1.0),
+            clock_drift: gps_info.clock_drift.unwrap_or(-1.0),
+            timepulse_granularity: gps_info.timepulse_granularity.unwrap_or(-1.0),
+        };
+        // Copy all the satellites into the C struct
+        for (i, sat) in gps_info.satellites.into_iter().enumerate() {
+            info.satellites[i] = sat.into();
+        }
+        info
     }
 }
 
@@ -440,6 +635,122 @@ unsafe extern "C" fn mic2_audio_save(device: *const NeoVIMIC, path: *const c_cha
         NeoVIMICErrType::NeoVIMICErrTypeSuccess
     } else {
         NeoVIMICErrType::NeoVIMICErrTypeFailure
+    }
+}
+
+
+/// Open the GPS interface on the device.
+///
+/// @param device    Pointer to a NeoVIMIC struct. Returns NeoVIMICErrTypeInvalidParameter if nullptr
+///
+/// @return          NeoVIMICErrTypeSuccess if successful, NeoVIMICErrTypeFailure if not
+#[no_mangle]
+extern "C" fn mic2_gps_open(device: *const NeoVIMIC) -> NeoVIMICErrType {
+    if device.is_null() {
+        return NeoVIMICErrType::NeoVIMICErrTypeInvalidParameter;
+    }
+    let neovi_mic = unsafe { 
+        let device = &*device;
+        let handle = &*(device.handle as *mut NeoVIMICHandle);
+        handle.inner.lock().unwrap()
+    };
+    match neovi_mic.gps_open() {
+        Ok(_) => NeoVIMICErrType::NeoVIMICErrTypeSuccess,
+        Err(_e) => NeoVIMICErrType::NeoVIMICErrTypeFailure,
+    }
+}
+
+/// Close the GPS interface on the device.
+///
+/// @param device    Pointer to aNeoVIMIC structs. Returns NeoVIMICErrTypeInvalidParameter if nullptr
+///
+/// @return          NeoVIMICErrTypeSuccess if successful, NeoVIMICErrTypeFailure if not
+#[no_mangle]
+extern "C" fn mic2_gps_close(device: *const NeoVIMIC) -> NeoVIMICErrType {
+    if device.is_null() {
+        return NeoVIMICErrType::NeoVIMICErrTypeInvalidParameter;
+    }
+    let neovi_mic = unsafe { 
+        let device = &*device;
+        let handle = &*(device.handle as *mut NeoVIMICHandle);
+        handle.inner.lock().unwrap()
+    };
+    match neovi_mic.gps_close() {
+        Ok(_) => NeoVIMICErrType::NeoVIMICErrTypeSuccess,
+        Err(_e) => NeoVIMICErrType::NeoVIMICErrTypeFailure,
+    }
+}
+
+/// Check if the GPS interface on the device is open.
+///
+/// @param device    Pointer to aNeoVIMIC structs. Returns NeoVIMICErrTypeInvalidParameter if nullptr
+/// @param is_open   Pointer to a bool. Set to true if open, false if not. Returns NeoVIMICErrTypeInvalidParameter if nullptr
+///
+/// @return          NeoVIMICErrTypeSuccess if successful, NeoVIMICErrTypeFailure if not
+#[no_mangle]
+extern "C" fn mic2_gps_is_open(device: *const NeoVIMIC, is_open: *mut bool) -> NeoVIMICErrType {
+    if device.is_null() || is_open.is_null() {
+        return NeoVIMICErrType::NeoVIMICErrTypeInvalidParameter;
+    }
+    unsafe { *is_open = false };
+
+    let neovi_mic = unsafe { 
+        let device = &*device;
+        let handle = &*(device.handle as *mut NeoVIMICHandle);
+        handle.inner.lock().unwrap()
+    };
+    match neovi_mic.gps_is_open() {
+        Ok(b) => {
+            unsafe { *is_open = b };
+            NeoVIMICErrType::NeoVIMICErrTypeSuccess
+        }
+        Err(_e) => NeoVIMICErrType::NeoVIMICErrTypeFailure,
+    }
+}
+
+/// Check if the GPS interface has a lock.
+///
+/// @param device    Pointer to aNeoVIMIC structs. Returns NeoVIMICErrTypeInvalidParameter if nullptr
+/// @param has_lock   Pointer to a bool. Set to true if has lock, false if not. Returns NeoVIMICErrTypeInvalidParameter if nullptr
+///
+/// @return          NeoVIMICErrTypeSuccess if successful, NeoVIMICErrTypeFailure if not
+#[no_mangle]
+extern "C" fn mic2_gps_has_lock(device: *const NeoVIMIC, has_lock: *mut bool) -> NeoVIMICErrType {
+    if device.is_null() || has_lock.is_null() {
+        return NeoVIMICErrType::NeoVIMICErrTypeInvalidParameter;
+    }
+    unsafe { *has_lock = false };
+
+    let neovi_mic = unsafe { 
+        let device = &*device;
+        let handle = &*(device.handle as *mut NeoVIMICHandle);
+        handle.inner.lock().unwrap()
+    };
+    match neovi_mic.gps_has_lock() {
+        Ok(b) => {
+            unsafe { *has_lock = b };
+            NeoVIMICErrType::NeoVIMICErrTypeSuccess
+        }
+        Err(_e) => NeoVIMICErrType::NeoVIMICErrTypeFailure,
+    }
+}
+
+#[no_mangle]
+extern "C" fn mic2_gps_info(device: *const NeoVIMIC, info: *mut CGPSInfo) -> NeoVIMICErrType {
+    if device.is_null() || info.is_null() {
+        return NeoVIMICErrType::NeoVIMICErrTypeInvalidParameter;
+    }
+    let neovi_mic = unsafe { 
+        let device = &*device;
+        let handle = &*(device.handle as *mut NeoVIMICHandle);
+        handle.inner.lock().unwrap()
+    };
+    match neovi_mic.gps_info() {
+        Ok(gps_info) => {
+            unsafe { *info = gps_info.into() };
+            NeoVIMICErrType::NeoVIMICErrTypeSuccess
+        }
+        Err(_e) => NeoVIMICErrType::NeoVIMICErrTypeFailure,
     }
 }
 
