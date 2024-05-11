@@ -1,7 +1,7 @@
 use core::slice;
 use neovi_mic_rs::mic;
 use std::{
-    ffi::{c_void, CString},
+    ffi::{c_void, CStr, CString},
     os::raw::c_char,
     sync::{Arc, Mutex},
 };
@@ -381,6 +381,65 @@ extern "C" fn mic2_io_button_is_pressed(
             NeoVIMICErrType::NeoVIMICErrTypeSuccess
         }
         Err(_e) => NeoVIMICErrType::NeoVIMICErrTypeFailure,
+    }
+}
+
+#[no_mangle]
+unsafe extern "C" fn mic2_audio_start(device: *const NeoVIMIC, sample_rate: u32) -> NeoVIMICErrType {
+    if device.is_null() {
+        return NeoVIMICErrType::NeoVIMICErrTypeInvalidParameter;
+    }
+
+    let neovi_mic = unsafe { 
+        let device = &*device;
+        let handle = &*(device.handle as *mut NeoVIMICHandle);
+        handle.inner.lock().unwrap()
+    };
+    
+    if neovi_mic.audio_start(sample_rate).is_ok() {
+        NeoVIMICErrType::NeoVIMICErrTypeSuccess
+    } else {
+        NeoVIMICErrType::NeoVIMICErrTypeFailure
+    }
+}
+
+#[no_mangle]
+unsafe extern "C" fn mic2_audio_stop(device: *const NeoVIMIC) -> NeoVIMICErrType {
+    if device.is_null() {
+        return NeoVIMICErrType::NeoVIMICErrTypeInvalidParameter;
+    }
+
+    let neovi_mic = unsafe { 
+        let device = &*device;
+        let handle = &*(device.handle as *mut NeoVIMICHandle);
+        handle.inner.lock().unwrap()
+    };
+    
+    if neovi_mic.audio_stop().is_ok() {
+        NeoVIMICErrType::NeoVIMICErrTypeSuccess
+    } else {
+        NeoVIMICErrType::NeoVIMICErrTypeFailure
+    }
+}
+
+#[no_mangle]
+unsafe extern "C" fn mic2_audio_save(device: *const NeoVIMIC, path: *const c_char) -> NeoVIMICErrType {
+    if device.is_null() {
+        return NeoVIMICErrType::NeoVIMICErrTypeInvalidParameter;
+    }
+
+    let path = CStr::from_ptr(path).to_str().unwrap();
+
+    let neovi_mic = unsafe { 
+        let device = &*device;
+        let handle = &*(device.handle as *mut NeoVIMICHandle);
+        handle.inner.lock().unwrap()
+    };
+    
+    if neovi_mic.audio_save(path).is_ok() {
+        NeoVIMICErrType::NeoVIMICErrTypeSuccess
+    } else {
+        NeoVIMICErrType::NeoVIMICErrTypeFailure
     }
 }
 

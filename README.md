@@ -15,8 +15,6 @@ neoVI MIC 2 is a handheld pendant accessory with USB Trigger, GPS and microphone
 - [Rust](https://www.rust-lang.org/)
 - [Python](https://www.python.org)
 - [C/C++](https://en.wikipedia.org/wiki/C_(programming_language)),
-- [C#](https://en.wikipedia.org/wiki/C_Sharp_(programming_language))
-- [JavaScript / Wasm](https://webassembly.org/)
 
 
 ### Features
@@ -51,16 +49,6 @@ sudo udevadm control --reload-rules && sudo udevadm trigger
 ### **C/C++**
 
 `TODO: cmake something?`
-
-
-### **C#**
-
-`TODO`
-
-
-### **JavaScript / Wasm**
-
-`TODO: Node?`
 
 
 ## **Links**
