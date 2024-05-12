@@ -333,13 +333,14 @@ extern "C" fn mic2_find(devices: *const NeoVIMIC, length: *mut u32, api_version:
     *length = std::cmp::min(*length, found_devices.len() as u32);
     // Convert the devices array to a mutable slice
     let devices = unsafe { slice::from_raw_parts_mut(devices as *mut NeoVIMIC, *length as usize) };
-    //for i in 0..devices.len() {
-    for (i, device) in devices.iter_mut().enumerate() {
+    for device in devices.iter_mut() {
+        // remove the device
+        let found_device = found_devices.pop().unwrap();
         device.version = api_version;
         device.size = neovi_mic_size;
         // Copy the serial number over
         device.serial_number.fill(0);
-        let sn = CString::new(found_devices[i].inner.lock().unwrap().get_serial_number()).unwrap();
+        let sn = CString::new(found_device.inner.lock().unwrap().get_serial_number()).unwrap();
         let sn_len = std::cmp::min(sn.as_bytes_with_nul().len(), device.serial_number.len() - 1);
         let serial_number_slice = device.serial_number.as_mut_slice();
         unsafe {
@@ -347,8 +348,8 @@ extern "C" fn mic2_find(devices: *const NeoVIMIC, length: *mut u32, api_version:
                 .copy_from_slice(slice::from_raw_parts(sn.as_ptr(), sn_len));
         }
         // Copy the handle over
-        let found_device = found_devices.swap_remove(i);
         device.handle = Box::into_raw(Box::new(found_device)) as *mut _;
+        
     }
 
     NeoVIMICErrType::NeoVIMICErrTypeSuccess
