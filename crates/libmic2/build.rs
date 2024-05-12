@@ -23,10 +23,15 @@ fn main() {
         .expect("Unable to generate bindings")
         .write_to_file(&header_path);
 
-        println!("cargo:rerun-if-changed=build.rs");
-        println!("cargo:rerun-if-changed=src/lib.rs");
+    println!("cargo:rerun-if-changed=build.rs");
+    println!("cargo:rerun-if-changed=src/lib.rs");
+    println!("cargo:rerun-if-changed=src/mic2.hpp");
+    println!("cargo:rerun-if-changed=src/mic2.cpp");
     println!("cargo:rerun-if-changed=../../Cargo.lock");
     
+    // Copy the C++ files
+    std::fs::copy("src/mic2.cpp", lib_path.join("mic2.cpp")).unwrap();
+    std::fs::copy("src/mic2.hpp", lib_path.join("mic2.hpp")).unwrap();
 
     // Debugging paths:
     println!("cargo:warning=OUT_PATH:{:#?}", env::var("OUT_DIR").unwrap());
