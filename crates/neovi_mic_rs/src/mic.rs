@@ -247,7 +247,7 @@ impl NeoVIMIC {
     }
 
     pub fn io_buzzer_enable(&self, enabled: bool) -> Result<()> {
-        let bit_mode = if enabled {
+        let bit_mode: enumflags2::BitFlags<IOBitMode, u8> = if enabled {
             IOBitMode::BuzzerMask | IOBitMode::Buzzer
         } else {
             IOBitMode::BuzzerMask.into()
@@ -300,56 +300,56 @@ impl NeoVIMIC {
     pub fn audio_start(&self, sample_rate: u32) -> Result<()> {
         match &self.audio {
             Some(audio) => audio.start(sample_rate),
-            None => panic!("Audio device isn't available"),
+            None => Err(crate::types::Error::InvalidDevice("Audio device isn't available".to_string())),
         }
     }
 
     pub fn audio_stop(&self) -> Result<()> {
         match &self.audio {
             Some(audio) => audio.stop(),
-            None => panic!("Audio device isn't available"),
+            None => Err(crate::types::Error::InvalidDevice("Audio device isn't available".to_string())),
         }
     }
 
     pub fn audio_save(&self, fname: impl Into<String>) -> Result<()> {
         match &self.audio {
             Some(audio) => audio.save_to_file(fname),
-            None => panic!("Audio device isn't available"),
+            None => Err(crate::types::Error::InvalidDevice("Audio device isn't available".to_string())),
         }
     }
 
     pub fn gps_open(&self) -> Result<bool> {
         match &self.gps {
             Some(gps) => gps.open(),
-            None => panic!("GPS device isn't available"),
+            None => Err(crate::types::Error::InvalidDevice("GPS device isn't available".to_string())),
         }
     }
 
     pub fn gps_is_open(&self) -> Result<bool> {
         match &self.gps {
             Some(gps) => Ok(gps.is_open()),
-            None => panic!("GPS device isn't available"),
+            None => Err(crate::types::Error::InvalidDevice("GPS device isn't available".to_string())),
         }
     }
 
     pub fn gps_close(&self) -> Result<()> {
         match &self.gps {
             Some(gps) => gps.close(),
-            None => panic!("GPS device isn't available"),
+            None => Err(crate::types::Error::InvalidDevice("GPS device isn't available".to_string())),
         }
     }
 
     pub fn gps_info(&self) -> Result<GPSInfo> {
         match &self.gps {
             Some(gps) => gps.get_info(),
-            None => panic!("GPS device isn't available"),
+            None => Err(crate::types::Error::InvalidDevice("GPS device isn't available".to_string())),
         }
     }
 
     pub fn gps_has_lock(&self) -> Result<bool> {
         match &self.gps {
             Some(gps) => gps.has_lock(),
-            None => panic!("GPS device isn't available"),
+            None => Err(crate::types::Error::InvalidDevice("GPS device isn't available".to_string())),
         }
     }
 }
