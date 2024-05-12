@@ -1,6 +1,8 @@
 #include <iostream>
 #include <print>
 #include <vector>
+#include <chrono>
+#include <thread>
 
 #include <mic2.hpp>
 
@@ -17,6 +19,13 @@ int main(int argc, char* argv[]) {
   std::cout << "Found " << devices.value().size() << " device(s)\n";
   for (auto& device : devices.value()) {
     std::cout << "neoVIMIC2 " << device.get_serial_number() << "\n";
+    std::cout << "\thas GPS: " << std::boolalpha << device.has_gps().value() << "\n";
+
+    device.io_open();
+    device.io_buzzer_enable(true);
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+    device.io_buzzer_enable(false);
+    device.io_close();
   }
 
   return 0;
