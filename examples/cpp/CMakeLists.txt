@@ -4,3 +4,4 @@ project(examples LANGUAGES C CXX)
 enable_testing()
 
 add_subdirectory(find)
+add_subdirectory(gps)
