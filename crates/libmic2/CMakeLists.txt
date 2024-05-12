@@ -38,6 +38,7 @@ add_custom_target(libmic2_rs ALL
 # Useful target properties for other Projects
 set_target_properties(libmic2_rs PROPERTIES LIB_NAME ${LIBMIC2_LIB_NAME})
 set_target_properties(libmic2_rs PROPERTIES BIN_LOCATION ${CMAKE_CURRENT_BINARY_DIR})
+set_target_properties(libmic2_rs PROPERTIES CXX_SOURCE "${CMAKE_CURRENT_BINARY_DIR}/mic2.cpp")
 
 # Test libmic2
 add_test(NAME libmic2_test

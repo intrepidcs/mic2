@@ -11,10 +11,10 @@ namespace mic2 {
 
 class CNeoVIMIC {
 public:
-  CNeoVIMIC(const NeoVIMIC *device);
+  CNeoVIMIC(const NeoVIMIC &device);
   ~CNeoVIMIC();
 
-  auto has_gps() const -> bool
+  auto has_gps() const -> std::expected<bool, NeoVIMICErrType>;
   auto get_serial_number() const -> std::string;
 
   auto audio_save(std::string path) const -> std::expected<bool, NeoVIMICErrType>;
