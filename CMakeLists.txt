@@ -9,7 +9,7 @@ option(BUILD_EXAMPLES "Build examples" OFF)
 
 
 # Build Examples if specified
-if (DEFINED BUILD_EXAMPLES)
+if (${BUILD_EXAMPLES})
     message(STATUS "Building examples")
     add_subdirectory(examples)
 endif()

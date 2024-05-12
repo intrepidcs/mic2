@@ -1,11 +1,8 @@
-#include <iostream>
-#include <print>
-#include <vector>
 #include <chrono>
-#include <thread>
-
+#include <iostream>
 #include <mic2.hpp>
-
+#include <thread>
+#include <vector>
 
 int main(int argc, char* argv[]) {
   (void)argc;
@@ -13,19 +10,45 @@ int main(int argc, char* argv[]) {
 
   auto devices = mic2::find();
   if (!devices) {
-    std::print("Failed to find devices: {}\n", static_cast<uint32_t>(devices.error()));
+    std::cout << "Failed to find devices: "
+              << static_cast<uint32_t>(devices.error()) << "\n";
     return 1;
   }
   std::cout << "Found " << devices.value().size() << " device(s)\n";
   for (auto& device : devices.value()) {
-    std::cout << "neoVIMIC2 " << device.get_serial_number() << "\n";
-    std::cout << "\thas GPS: " << std::boolalpha << device.has_gps().value() << "\n";
-
-    device.io_open();
-    device.io_buzzer_enable(true);
-    std::this_thread::sleep_for(std::chrono::seconds(1));
-    device.io_buzzer_enable(false);
-    device.io_close();
+    // Open IO
+    if (auto result = device.io_open(); !result.has_value()) {
+      std::cerr << "Failed to open " << device.get_serial_number() << ": "
+                << result.error() << "\n";
+      continue;
+    } else {
+      std::cout << "Opened " << device.get_serial_number() << "\n";
+    }
+    // Enable Buzzer
+    if (auto result = device.io_buzzer_enable(true); !result.has_value()) {
+      std::cerr << "Failed to enable buzzer on " << device.get_serial_number()
+                << ": " << result.error() << "\n";
+      continue;
+    } else {
+      std::cout << "Enabled buzzer on " << device.get_serial_number() << "\n";
+    }
+    // Wait for buzzer to make some noise
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    if (auto result = device.io_buzzer_enable(false); !result.has_value()) {
+      std::cerr << "Failed to disable buzzer on " << device.get_serial_number()
+                << ": " << result.error() << "\n";
+      continue;
+    } else {
+      std::cout << "Disabled buzzer on " << device.get_serial_number() << "\n";
+    }
+    // Close IO
+    if (auto result = device.io_close(); !result.has_value()) {
+      std::cerr << "Failed to close " << device.get_serial_number() << ": "
+                << result.error() << "\n";
+      continue;
+    } else {
+      std::cout << "Closed " << device.get_serial_number() << "\n";
+    }
   }
 
   return 0;
@@ -64,7 +87,8 @@ int main(int argc, char* argv[]) {
 //   NeoVIMIC devices[DEVICE_COUNT] = {0};
 //   uint32_t length = (uint32_t)DEVICE_COUNT;
 //   NeoVIMICErrType err = NeoVIMICErrTypeFailure;
-//   if ((err = mic2_find(devices, &length, MIC2_API_VERSION, sizeof(NeoVIMIC))) !=
+//   if ((err = mic2_find(devices, &length, MIC2_API_VERSION, sizeof(NeoVIMIC)))
+//   !=
 //       NeoVIMICErrTypeSuccess) {
 //     return print_error(&err);
 //   }
@@ -72,7 +96,8 @@ int main(int argc, char* argv[]) {
 //   // Loop through all the devices found
 //   for (uint32_t i = 0; i < length; i++) {
 //     bool has_gps = false;
-//     if ((err = mic2_has_gps(&devices[i], &has_gps)) != NeoVIMICErrTypeSuccess) {
+//     if ((err = mic2_has_gps(&devices[i], &has_gps)) !=
+//     NeoVIMICErrTypeSuccess) {
 //       return print_error(&err);
 //     }
 //     printf("Device %s has GPS: %s\n", devices[i].serial_number,
@@ -136,10 +161,13 @@ int main(int argc, char* argv[]) {
 // /**
 //  * This function is a helper function that checks if the buzzer is enabled or
 //  * disabled on the given device. It takes a pointer to a NeoVIMIC object and
-//  * returns a boolean value indicating whether the buzzer is enabled or disabled.
+//  * returns a boolean value indicating whether the buzzer is enabled or
+//  disabled.
 //  *
-//  * @param device a pointer to a NeoVIMIC object representing the device to check
-//  * @return a boolean value indicating whether the buzzer is enabled or disabled
+//  * @param device a pointer to a NeoVIMIC object representing the device to
+//  check
+//  * @return a boolean value indicating whether the buzzer is enabled or
+//  disabled
 //  */
 // bool is_buzzer_enabled(const NeoVIMIC *device) {
 //   bool is_enabled = false;
@@ -155,10 +183,13 @@ int main(int argc, char* argv[]) {
 // /**
 //  * This function is a helper function that checks if the buzzer is enabled or
 //  * disabled on the given device. It takes a pointer to a NeoVIMIC object and
-//  * returns a boolean value indicating whether the buzzer is enabled or disabled.
+//  * returns a boolean value indicating whether the buzzer is enabled or
+//  disabled.
 //  *
-//  * @param device a pointer to a NeoVIMIC object representing the device to check
-//  * @return a boolean value indicating whether the buzzer is enabled or disabled
+//  * @param device a pointer to a NeoVIMIC object representing the device to
+//  check
+//  * @return a boolean value indicating whether the buzzer is enabled or
+//  disabled
 //  */
 // bool is_gpsled_enabled(const NeoVIMIC *device) {
 //   bool is_enabled = false;
@@ -173,7 +204,8 @@ int main(int argc, char* argv[]) {
 
 // bool exercise_all_io(const NeoVIMIC *device) {
 //   const bool result = exercise_io_buzzer(device) &&
-//                       exercise_io_button(device) && exercise_io_gpsled(device);
+//                       exercise_io_button(device) &&
+//                       exercise_io_gpsled(device);
 //   return result;
 // }
 
@@ -181,13 +213,15 @@ int main(int argc, char* argv[]) {
 //   NeoVIMICErrType err = NeoVIMICErrTypeFailure;
 //   // Toggle the buzzer
 //   bool success = !is_buzzer_enabled(device);
-//   if ((err = mic2_io_buzzer_enable(device, true)) != NeoVIMICErrTypeSuccess) {
+//   if ((err = mic2_io_buzzer_enable(device, true)) != NeoVIMICErrTypeSuccess)
+//   {
 //     return print_error(&err);
 //   }
 //   bool success2 = is_buzzer_enabled(device);
 //   // Wait 1 second so we can hear the buzzer
 //   sleep(1);
-//   if ((err = mic2_io_buzzer_enable(device, false)) != NeoVIMICErrTypeSuccess) {
+//   if ((err = mic2_io_buzzer_enable(device, false)) != NeoVIMICErrTypeSuccess)
+//   {
 //     return print_error(&err);
 //   }
 //   bool success3 = !is_buzzer_enabled(device);
@@ -212,11 +246,14 @@ int main(int argc, char* argv[]) {
 
 // /**
 //  * This function is a helper function that exercises the GPS LED of the given
-//  * NeoVIMIC device. It toggles the GPS LED on and off, waits for one second, and
-//  * then toggles it off again. It returns true if the function was successful in
+//  * NeoVIMIC device. It toggles the GPS LED on and off, waits for one second,
+//  and
+//  * then toggles it off again. It returns true if the function was successful
+//  in
 //  * toggling the GPS LED, and false otherwise.
 //  *
-//  * @param device a pointer to a NeoVIMIC object representing the device to check
+//  * @param device a pointer to a NeoVIMIC object representing the device to
+//  check
 //  * @return a boolean value indicating whether the function was successful in
 //  *         toggling the GPS LED
 //  */
@@ -224,13 +261,15 @@ int main(int argc, char* argv[]) {
 //   NeoVIMICErrType err = NeoVIMICErrTypeFailure;
 //   // Toggle the GPS LED
 //   bool success = !is_gpsled_enabled(device);
-//   if ((err = mic2_io_gpsled_enable(device, true)) != NeoVIMICErrTypeSuccess) {
+//   if ((err = mic2_io_gpsled_enable(device, true)) != NeoVIMICErrTypeSuccess)
+//   {
 //     return print_error(&err);
 //   }
 //   bool success2 = is_gpsled_enabled(device);
 //   // Wait 1 second so we can hear the gpsled
 //   sleep(1);
-//   if ((err = mic2_io_gpsled_enable(device, false)) != NeoVIMICErrTypeSuccess) {
+//   if ((err = mic2_io_gpsled_enable(device, false)) != NeoVIMICErrTypeSuccess)
+//   {
 //     return print_error(&err);
 //   }
 //   bool success3 = !is_gpsled_enabled(device);
@@ -243,7 +282,8 @@ int main(int argc, char* argv[]) {
 //   bool success1 = mic2_audio_start(device, 44100) == NeoVIMICErrTypeSuccess;
 //   sleep(RECORDING_TIME);
 //   bool success2 = mic2_audio_stop(device) == NeoVIMICErrTypeSuccess;
-//   bool success3 = mic2_audio_save(device, "main.wav") == NeoVIMICErrTypeSuccess;
+//   bool success3 = mic2_audio_save(device, "main.wav") ==
+//   NeoVIMICErrTypeSuccess;
 
 //   return success1 && success2 && success3;
 // }
@@ -263,7 +303,8 @@ int main(int argc, char* argv[]) {
 //     return print_error(&err) == NeoVIMICErrTypeSuccess;
 //   }
 //   bool has_lock = false;
-//   if ((err = mic2_gps_has_lock(device, &has_lock)) != NeoVIMICErrTypeSuccess) {
+//   if ((err = mic2_gps_has_lock(device, &has_lock)) != NeoVIMICErrTypeSuccess)
+//   {
 //     mic2_gps_close(device);
 //     return print_error(&err) == NeoVIMICErrTypeSuccess;
 //   }
@@ -279,8 +320,8 @@ int main(int argc, char* argv[]) {
 //   time_t current_time = info.current_time;
 //   printf("Timestamp: %s\n", asctime(gmtime(&current_time)));
 //   printf("Longitude: %d°%c %d' %d\"  (Valid: %d)\n", info.latitude.degrees,
-//          info.latitude.minutes, info.latitude.seconds, info.latitude_direction,
-//          info.latitude_valid);
+//          info.latitude.minutes, info.latitude.seconds,
+//          info.latitude_direction, info.latitude_valid);
 //   printf("Longitude: %d°%c %d' %d\"  (Valid: %d)\n", info.longitude.degrees,
 //          info.longitude.minutes, info.longitude.seconds,
 //          info.longitude_direction, info.longitude_valid);

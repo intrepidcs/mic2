@@ -20,8 +20,8 @@ endif()
 set(LIBMIC2_LIB "${CMAKE_CURRENT_BINARY_DIR}/${TARGET_DIR}/${LIBMIC2_LIB_NAME}")
 set(LIBMIC2_STATIC_LIB "${CMAKE_CURRENT_BINARY_DIR}/${TARGET_DIR}/libmic2.a")
 set(LIBMIC2_HEADER_PATH "${CMAKE_CURRENT_BINARY_DIR}/${TARGET_DIR}/mic2.h")
-set(LIBMIC2_CXX_HEADER_PATH "${CMAKE_CURRENT_BINARY_DIR}/${TARGET_DIR}/mic2.hpp")
-set(LIBMIC2_CXX_SRC_PATH "${CMAKE_CURRENT_BINARY_DIR}/${TARGET_DIR}/mic2.cpp")
+set(LIBMIC2_CXX_HEADER_PATH "${CMAKE_SOURCE_DIR}/crates/libmic2/src/mic2.hpp")
+set(LIBMIC2_CXX_SRC_PATH "${CMAKE_SOURCE_DIR}/crates/libmic2/src/mic2.cpp")
 
 # Build libmic2
 message(STATUS "executing CARGO_TARGET_DIR=${CMAKE_CURRENT_BINARY_DIR} ${CARGO_CMD}")
@@ -38,7 +38,7 @@ add_custom_target(libmic2_rs ALL
 # Useful target properties for other Projects
 set_target_properties(libmic2_rs PROPERTIES LIB_NAME ${LIBMIC2_LIB_NAME})
 set_target_properties(libmic2_rs PROPERTIES BIN_LOCATION ${CMAKE_CURRENT_BINARY_DIR})
-set_target_properties(libmic2_rs PROPERTIES CXX_SOURCE "${CMAKE_CURRENT_BINARY_DIR}/mic2.cpp")
+set_target_properties(libmic2_rs PROPERTIES CXX_SOURCE "${LIBMIC2_CXX_SRC_PATH}")
 
 # Test libmic2
 add_test(NAME libmic2_test
