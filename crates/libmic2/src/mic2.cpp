@@ -1,8 +1,8 @@
 #include "mic2.hpp"
 
 #include <cstdint>
-#include <string>
 #include <expected>
+#include <string>
 #include <vector>
 
 using namespace mic2;
@@ -103,7 +103,8 @@ auto CNeoVIMIC::gps_open() const -> std::expected<void, NeoVIMICErrType> {
 auto CNeoVIMIC::io_button_is_pressed() const
     -> std::expected<bool, NeoVIMICErrType> {
   bool io_button_is_pressed = false;
-  NeoVIMICErrType err = mic2_io_button_is_pressed(&device, &io_button_is_pressed);
+  NeoVIMICErrType err =
+      mic2_io_button_is_pressed(&device, &io_button_is_pressed);
   if (err != NeoVIMICErrTypeSuccess) {
     return std::unexpected(err);
   } else {
@@ -179,12 +180,12 @@ auto mic2::find() -> std::expected<std::vector<CNeoVIMIC>, NeoVIMICErrType> {
   NeoVIMIC dev_buffer[DEVICE_COUNT] = {};
   uint32_t length = (uint32_t)DEVICE_COUNT;
   NeoVIMICErrType err = NeoVIMICErrTypeFailure;
-  if ((err = mic2_find(dev_buffer, &length, MIC2_API_VERSION, sizeof(NeoVIMIC))) !=
-      NeoVIMICErrTypeSuccess) {
+  if ((err = mic2_find(dev_buffer, &length, MIC2_API_VERSION,
+                       sizeof(NeoVIMIC))) != NeoVIMICErrTypeSuccess) {
     return std::unexpected(err);
   }
   std::vector<CNeoVIMIC> devices;
-  for (uint32_t i=0; i<length; i++) {
+  for (uint32_t i = 0; i < length; i++) {
     devices.push_back(CNeoVIMIC(dev_buffer[i]));
   }
   return devices;
