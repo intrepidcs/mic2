@@ -4,11 +4,14 @@ use serialport;
 
 #[derive(Debug, Clone)]
 pub enum Error {
+    /// Invalid device, typically occurs when the device doesn't have support (ie. GPS)
     InvalidDevice(String),
     SerialError(serialport::Error),
     IOError(std::io::ErrorKind),
+    /// Unrecoverable critical error
     CriticalError(String),
-
+    /// Feature is not enabled. See cargo.toml and cargo --features parameters
+    NotSupported(String),
 }
 
 impl std::error::Error for Error {}
@@ -21,6 +24,7 @@ impl fmt::Display for Error {
             Self::SerialError(s) => write!(f, "Serial Error: {:#?}", s),
             Self::IOError(e) => write!(f, "IO Error: {:#?}", e),
             Self::CriticalError(s) => write!(f, "Critical Error: {:#?}", s),
+            Self::NotSupported(s) => write!(f, "Not Supported: {:#?}", s),
         }
     }
 }

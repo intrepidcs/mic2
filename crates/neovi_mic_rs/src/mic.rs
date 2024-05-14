@@ -1,7 +1,13 @@
+#[cfg(feature = "io")]
 use std::borrow::BorrowMut;
 
+#[cfg(feature = "io")]
+use crate::io::{IOBitMode, IO};
 use crate::{
-    audio::Audio, gps::GPSDevice, io::{IOBitMode, IO}, nmea::types::GPSInfo, types::Result
+    audio::Audio,
+    gps::GPSDevice,
+    nmea::types::GPSInfo,
+    types::{Error, Result},
 };
 use rusb::{self, GlobalContext};
 
@@ -48,7 +54,10 @@ pub struct UsbDeviceInfo {
 }
 
 impl UsbDeviceInfo {
-    pub fn from_rusb_device(device: &rusb::Device<GlobalContext>, serial_number: Option<String>) -> Self {
+    pub fn from_rusb_device(
+        device: &rusb::Device<GlobalContext>,
+        serial_number: Option<String>,
+    ) -> Self {
         let device_desc = device.device_descriptor().unwrap();
         let vendor_id = device_desc.vendor_id();
         let product_id = device_desc.product_id();
@@ -88,6 +97,7 @@ pub struct NeoVIMIC {
     /// Extra USB devices plugged into the USB hub.
     extra_usb_info: Vec<UsbDeviceInfo>,
     /// IO device attached to the USB Hub.
+    #[cfg(feature = "io")]
     io: Option<IO>,
     /// Audio Device attached to the USB Hub.
     audio: Option<Audio>,
@@ -117,6 +127,7 @@ pub fn find_neovi_mics() -> Result<Vec<NeoVIMIC>> {
         let mut gps_usb_info = None;
         let mut extra_usb_info: Vec<UsbDeviceInfo> = Vec::new();
         // define all the actual objects that reflect the UsbDeviceInfo
+        #[cfg(feature = "io")]
         let mut io = None;
         let mut audio = None;
         let mut gps = None;
@@ -128,15 +139,13 @@ pub fn find_neovi_mics() -> Result<Vec<NeoVIMIC>> {
             Err(e) => {
                 println!("{}", e);
                 Vec::new()
-            },
+            }
         };
         // Find all devices attached to the hub
         for device in rusb::devices().unwrap().iter().filter(|d| {
             // Get the parent of the device, can't proceed if we don't have a parent.
             match d.get_parent() {
-                Some(parent) => {
-                    UsbDeviceInfo::from_rusb_device(&parent, None) == *usb_hub
-                },
+                Some(parent) => UsbDeviceInfo::from_rusb_device(&parent, None) == *usb_hub,
                 None => false,
             }
         }) {
@@ -147,7 +156,7 @@ pub fn find_neovi_mics() -> Result<Vec<NeoVIMIC>> {
             };
             // match up the VID/PID to a UsbDeviceType
             match UsbDeviceInfo::usb_device_type_from_vid_pid(&vendor_id, &product_id) {
-                UsbDeviceType::MicrochipHub => {},
+                UsbDeviceType::MicrochipHub => {}
                 UsbDeviceType::FT245R => {
                     // Grab the serial number before we create the UsbDeviceInfo
                     let serial_number = match &device.open() {
@@ -160,13 +169,17 @@ pub fn find_neovi_mics() -> Result<Vec<NeoVIMIC>> {
                         }
                     };
                     let usb_info = UsbDeviceInfo::from_rusb_device(&device, Some(serial_number));
-                    io = IO::from(usb_info.clone()).ok();
+                    cfg_if::cfg_if! {
+                        if #[cfg(feature = "io")] {
+                            io = IO::from(usb_info.clone()).ok();
+                        }
+                    }
                     io_usb_info = Some(usb_info);
-                },
+                }
                 UsbDeviceType::GPS => {
                     gps_usb_info = Some(UsbDeviceInfo::from_rusb_device(&device, None));
                     gps = GPSDevice::find(&vendor_id, &product_id);
-                },
+                }
                 UsbDeviceType::Audio => {
                     audio_usb_info = Some(UsbDeviceInfo::from_rusb_device(&device, None));
                     // See audio_device declaration above for information on how we are
@@ -175,12 +188,12 @@ pub fn find_neovi_mics() -> Result<Vec<NeoVIMIC>> {
                         Some(audio_device) => Some(audio_device.clone()),
                         None => None,
                     };
-                },
+                }
                 UsbDeviceType::Unknown => {
                     extra_usb_info.push(UsbDeviceInfo::from_rusb_device(&device, None));
-                },
+                }
             };
-        };
+        }
         // Create the IO device
         devices.push(NeoVIMIC {
             index: i as u32,
@@ -189,6 +202,7 @@ pub fn find_neovi_mics() -> Result<Vec<NeoVIMIC>> {
             audio_usb_info,
             gps_usb_info,
             extra_usb_info,
+            #[cfg(feature="io")]
             io,
             audio,
             gps,
@@ -206,7 +220,7 @@ impl NeoVIMIC {
     pub fn get_serial_number(&self) -> String {
         match self.io_usb_info.as_ref() {
             Some(info) => info.serial_number.clone().unwrap_or_default(),
-            None => "".into()
+            None => "".into(),
         }
     }
 
@@ -231,125 +245,191 @@ impl NeoVIMIC {
     }
 
     pub fn io_open(&self) -> Result<()> {
-        self.io.as_ref().expect("IO device not available").open()
+        cfg_if::cfg_if! {
+            if #[cfg(feature = "io")] {
+                self.io.as_ref().expect("IO device not available").open()
+            } else {
+                Err(Error::NotSupported("io feature not enabled".to_string()))
+            }
+        }
     }
 
     pub fn io_close(&self) -> Result<()> {
-        self.io
-            .as_ref()
-            .expect("IO device not available")
-            .borrow_mut()
-            .close()
+        cfg_if::cfg_if! {
+            if #[cfg(feature = "io")] {
+                self.io
+                    .as_ref()
+                    .expect("IO device not available")
+                    .borrow_mut()
+                    .close()
+            } else {
+                Err(Error::NotSupported("io feature not enabled".to_string()))
+            }
+        }
     }
 
     pub fn io_is_open(&self) -> Result<bool> {
-        Ok(self.io.as_ref().expect("IO device not available").is_open())
+        cfg_if::cfg_if! {
+            if #[cfg(feature = "io")] {
+                Ok(self.io.as_ref().expect("IO device not available").is_open())
+            } else {
+                Err(Error::NotSupported("io feature not enabled".to_string()))
+            }
+        }
     }
 
     pub fn io_buzzer_enable(&self, enabled: bool) -> Result<()> {
-        let bit_mode: enumflags2::BitFlags<IOBitMode, u8> = if enabled {
-            IOBitMode::BuzzerMask | IOBitMode::Buzzer
-        } else {
-            IOBitMode::BuzzerMask.into()
-        };
-        self.io
-            .as_ref()
-            .expect("IO device not available")
-            .set_bitmode(bit_mode)
+        cfg_if::cfg_if! {
+            if #[cfg(feature = "io")] {
+                let bit_mode: enumflags2::BitFlags<IOBitMode, u8> = if enabled {
+                    IOBitMode::BuzzerMask | IOBitMode::Buzzer
+                } else {
+                    IOBitMode::BuzzerMask.into()
+                };
+                self.io
+                    .as_ref()
+                    .expect("IO device not available")
+                    .set_bitmode(bit_mode)
+            } else {
+                let _ = enabled;
+                Err(Error::NotSupported("io feature not enabled".to_string()))
+            }
+        }
     }
 
     pub fn io_buzzer_is_enabled(&self) -> Result<bool> {
-        let pins = self
-            .io
-            .as_ref()
-            .expect("IO device not available")
-            .read_pins()?;
-        Ok(pins & IOBitMode::Buzzer == IOBitMode::Buzzer)
+        cfg_if::cfg_if! {
+            if #[cfg(feature = "io")] {
+                let pins = self
+                            .io
+                            .as_ref()
+                            .expect("IO device not available")
+                            .read_pins()?;
+                Ok(pins & IOBitMode::Buzzer == IOBitMode::Buzzer)
+            } else {
+                Err(Error::NotSupported("io feature not enabled".to_string()))
+            }
+        }
     }
 
     pub fn io_gpsled_enable(&self, enabled: bool) -> Result<()> {
-        let bit_mode = if enabled {
-            IOBitMode::GPSLedMask | IOBitMode::GPSLed
-        } else {
-            IOBitMode::GPSLedMask.into()
-        };
-        self.io
-            .as_ref()
-            .expect("IO device not available")
-            .set_bitmode(bit_mode)
+        cfg_if::cfg_if! {
+            if #[cfg(feature = "io")] {
+                let bit_mode = if enabled {
+                    IOBitMode::GPSLedMask | IOBitMode::GPSLed
+                } else {
+                    IOBitMode::GPSLedMask.into()
+                };
+                self.io
+                    .as_ref()
+                    .expect("IO device not available")
+                    .set_bitmode(bit_mode)
+            } else {
+                let _ = enabled;
+                Err(Error::NotSupported("io feature not enabled".to_string()))
+            }
+        }
     }
 
     pub fn io_gpsled_is_enabled(&self) -> Result<bool> {
-        let pins = self
+        cfg_if::cfg_if! {
+            if #[cfg(feature = "io")] {
+                let pins = self
             .io
             .as_ref()
             .expect("IO device not available")
             .read_pins()?;
         Ok(pins & IOBitMode::GPSLed == IOBitMode::GPSLed)
+            } else {
+                Err(Error::NotSupported("io feature not enabled".to_string()))
+            }
+        }
     }
 
     pub fn io_button_is_pressed(&self) -> Result<bool> {
-        let pins = self
+        cfg_if::cfg_if! {
+            if #[cfg(feature = "io")] {
+                let pins = self
             .io
             .as_ref()
             .expect("IO device not available")
             .read_pins()?;
         Ok(pins & IOBitMode::Button == IOBitMode::Button)
+            } else {
+                Err(Error::NotSupported("io feature not enabled".to_string()))
+            }
+        }
     }
 
     pub fn audio_start(&self, sample_rate: u32) -> Result<()> {
         match &self.audio {
             Some(audio) => audio.start(sample_rate),
-            None => Err(crate::types::Error::InvalidDevice("Audio device isn't available".to_string())),
+            None => Err(crate::types::Error::InvalidDevice(
+                "Audio device isn't available".to_string(),
+            )),
         }
     }
 
     pub fn audio_stop(&self) -> Result<()> {
         match &self.audio {
             Some(audio) => audio.stop(),
-            None => Err(crate::types::Error::InvalidDevice("Audio device isn't available".to_string())),
+            None => Err(crate::types::Error::InvalidDevice(
+                "Audio device isn't available".to_string(),
+            )),
         }
     }
 
     pub fn audio_save(&self, fname: impl Into<String>) -> Result<()> {
         match &self.audio {
             Some(audio) => audio.save_to_file(fname),
-            None => Err(crate::types::Error::InvalidDevice("Audio device isn't available".to_string())),
+            None => Err(crate::types::Error::InvalidDevice(
+                "Audio device isn't available".to_string(),
+            )),
         }
     }
 
     pub fn gps_open(&self) -> Result<bool> {
         match &self.gps {
             Some(gps) => gps.open(),
-            None => Err(crate::types::Error::InvalidDevice("GPS device isn't available".to_string())),
+            None => Err(crate::types::Error::InvalidDevice(
+                "GPS device isn't available".to_string(),
+            )),
         }
     }
 
     pub fn gps_is_open(&self) -> Result<bool> {
         match &self.gps {
             Some(gps) => Ok(gps.is_open()),
-            None => Err(crate::types::Error::InvalidDevice("GPS device isn't available".to_string())),
+            None => Err(crate::types::Error::InvalidDevice(
+                "GPS device isn't available".to_string(),
+            )),
         }
     }
 
     pub fn gps_close(&self) -> Result<()> {
         match &self.gps {
             Some(gps) => gps.close(),
-            None => Err(crate::types::Error::InvalidDevice("GPS device isn't available".to_string())),
+            None => Err(crate::types::Error::InvalidDevice(
+                "GPS device isn't available".to_string(),
+            )),
         }
     }
 
     pub fn gps_info(&self) -> Result<GPSInfo> {
         match &self.gps {
             Some(gps) => gps.get_info(),
-            None => Err(crate::types::Error::InvalidDevice("GPS device isn't available".to_string())),
+            None => Err(crate::types::Error::InvalidDevice(
+                "GPS device isn't available".to_string(),
+            )),
         }
     }
 
     pub fn gps_has_lock(&self) -> Result<bool> {
         match &self.gps {
             Some(gps) => gps.has_lock(),
-            None => Err(crate::types::Error::InvalidDevice("GPS device isn't available".to_string())),
+            None => Err(crate::types::Error::InvalidDevice(
+                "GPS device isn't available".to_string(),
+            )),
         }
     }
 }
@@ -393,7 +473,7 @@ mod tests {
     fn test_audio() {
         Audio::find_neovi_mic2_audio().unwrap();
     }
-    
+
     #[test]
     fn test_io() {
         let devices = find_neovi_mics().expect("Expected at least one neoVI MIC2!");

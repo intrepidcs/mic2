@@ -1,6 +1,5 @@
 use std::{
     borrow::BorrowMut,
-    cell::RefCell,
     sync::{
         atomic::{AtomicBool, Ordering},
         mpsc, Arc, RwLock,

@@ -10,6 +10,7 @@
 #include <time.h>
 
 #define DEVICE_COUNT (10)
+#define BUF_SIZE (1024)
 
 // Function prototypes here
 int print_error(const NeoVIMICErrType *err);
@@ -88,7 +89,6 @@ int print_error(const NeoVIMICErrType *err) {
   }
 
   // Get error string and print it
-  const size_t BUF_SIZE = 1024;
   char buffer[BUF_SIZE];
   memset(buffer, 0, BUF_SIZE);
   uint32_t length = (uint32_t)BUF_SIZE;

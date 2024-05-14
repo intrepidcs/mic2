@@ -2,6 +2,11 @@
     "rust-analyzer.linkedProjects": [
         "./crates/neovi_mic_rs/Cargo.toml"
     ],
+    "terminal.integrated.env.windows": {
+        "SFML_INCLUDE_DIR": "C:\\dev\\SFML-2.6.1\\include",
+        "SFML_LIBS_DIR": "C:\\dev\\SFML-2.6.1\\lib",
+        "PYO3_PYTHON": "C:\\Python\\Python311-64\\python.exe",
+    },
     "files.associations": {
         "mic2.h": "c",
         "format": "c",

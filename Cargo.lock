@@ -466,6 +466,7 @@ name = "neovi_mic_rs"
 version = "0.1.0"
 dependencies = [
  "bitflags 2.3.3",
+ "cfg-if",
  "chrono",
  "enumflags2",
  "libftdi1-sys",
