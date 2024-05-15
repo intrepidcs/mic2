@@ -271,7 +271,10 @@ impl NeoVIMIC {
     pub fn io_is_open(&self) -> Result<bool> {
         cfg_if::cfg_if! {
             if #[cfg(feature = "io")] {
-                Ok(self.io.as_ref().expect("IO device not available").is_open())
+                match self.io.as_ref() {
+                    Some(io) => Ok(io.is_open()),
+                    None => Err(Error::NotSupported("IO device not available.".to_string())),
+                }
             } else {
                 Err(Error::NotSupported("io feature not enabled".to_string()))
             }
@@ -286,10 +289,10 @@ impl NeoVIMIC {
                 } else {
                     IOBitMode::BuzzerMask.into()
                 };
-                self.io
-                    .as_ref()
-                    .expect("IO device not available")
-                    .set_bitmode(bit_mode)
+                match self.io.as_ref() {
+                    Some(io) => io.set_bitmode(bit_mode),
+                    None => Err(Error::NotSupported("IO device not available.".to_string())),
+                }
             } else {
                 let _ = enabled;
                 Err(Error::NotSupported("io feature not enabled".to_string()))
@@ -300,11 +303,10 @@ impl NeoVIMIC {
     pub fn io_buzzer_is_enabled(&self) -> Result<bool> {
         cfg_if::cfg_if! {
             if #[cfg(feature = "io")] {
-                let pins = self
-                            .io
-                            .as_ref()
-                            .expect("IO device not available")
-                            .read_pins()?;
+                let pins = match self.io.as_ref() {
+                    Some(io) => io.read_pins()?,
+                    None => return Err(Error::NotSupported("IO device not available.".to_string())),
+                };
                 Ok(pins & IOBitMode::Buzzer == IOBitMode::Buzzer)
             } else {
                 Err(Error::NotSupported("io feature not enabled".to_string()))
@@ -320,10 +322,10 @@ impl NeoVIMIC {
                 } else {
                     IOBitMode::GPSLedMask.into()
                 };
-                self.io
-                    .as_ref()
-                    .expect("IO device not available")
-                    .set_bitmode(bit_mode)
+                match self.io.as_ref() {
+                    Some(io) => io.set_bitmode(bit_mode),
+                    None => Err(Error::NotSupported("IO device not available.".to_string())),
+                }
             } else {
                 let _ = enabled;
                 Err(Error::NotSupported("io feature not enabled".to_string()))
@@ -334,12 +336,11 @@ impl NeoVIMIC {
     pub fn io_gpsled_is_enabled(&self) -> Result<bool> {
         cfg_if::cfg_if! {
             if #[cfg(feature = "io")] {
-                let pins = self
-            .io
-            .as_ref()
-            .expect("IO device not available")
-            .read_pins()?;
-        Ok(pins & IOBitMode::GPSLed == IOBitMode::GPSLed)
+                let pins = match self.io.as_ref() {
+                    Some(io) => io.read_pins()?,
+                    None => return Err(Error::NotSupported("IO device not available.".to_string())),
+                };
+                Ok(pins & IOBitMode::GPSLed == IOBitMode::GPSLed)
             } else {
                 Err(Error::NotSupported("io feature not enabled".to_string()))
             }
@@ -349,12 +350,11 @@ impl NeoVIMIC {
     pub fn io_button_is_pressed(&self) -> Result<bool> {
         cfg_if::cfg_if! {
             if #[cfg(feature = "io")] {
-                let pins = self
-            .io
-            .as_ref()
-            .expect("IO device not available")
-            .read_pins()?;
-        Ok(pins & IOBitMode::Button == IOBitMode::Button)
+                let pins = match self.io.as_ref() {
+                    Some(io) => io.read_pins()?,
+                    None => return Err(Error::NotSupported("IO device not available.".to_string())),
+                };
+                Ok(pins & IOBitMode::Button == IOBitMode::Button)
             } else {
                 Err(Error::NotSupported("io feature not enabled".to_string()))
             }
