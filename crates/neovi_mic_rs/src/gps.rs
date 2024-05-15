@@ -156,16 +156,19 @@ impl GPSDevice {
         if self.thread_running.load(Ordering::Relaxed) {
             return Ok(true);
         }
-        // create the thread
+        // Prepare the thread variables
         let port_name = self.port_name.clone();
         let baud_rate = self.baud_rate;
         let shutdown_thread = self.shutdown_thread.clone();
+        shutdown_thread.store(false, Ordering::SeqCst);
         let thread_running = self.thread_running.clone();
+        thread_running.store(false, Ordering::SeqCst);
         let is_open = self.is_open.clone();
+        is_open.store(false, Ordering::SeqCst);
         let gps_info = self.gps_info.clone();
-        
+        // create the thread
         let (tx, rx) = mpsc::channel();
-        let _thread =std::thread::spawn(move || {
+        let _thread = std::thread::spawn(move || {
             thread_running.store(true, Ordering::SeqCst);
             is_open.store(false, Ordering::SeqCst);
             // We notify the condvar that the value has changed.
