@@ -1,7 +1,4 @@
 #[cfg(feature = "io")]
-use std::borrow::BorrowMut;
-
-#[cfg(feature = "io")]
 use crate::io::{IOBitMode, IO};
 use crate::{
     audio::Audio,
@@ -247,7 +244,10 @@ impl NeoVIMIC {
     pub fn io_open(&self) -> Result<()> {
         cfg_if::cfg_if! {
             if #[cfg(feature = "io")] {
-                self.io.as_ref().expect("IO device not available").open()
+                match self.io.as_ref() {
+                    Some(io) => io.open(),
+                    None => Err(Error::NotSupported("IO device not available.".to_string())),
+                }
             } else {
                 Err(Error::NotSupported("io feature not enabled".to_string()))
             }
@@ -257,11 +257,10 @@ impl NeoVIMIC {
     pub fn io_close(&self) -> Result<()> {
         cfg_if::cfg_if! {
             if #[cfg(feature = "io")] {
-                self.io
-                    .as_ref()
-                    .expect("IO device not available")
-                    .borrow_mut()
-                    .close()
+                match self.io.as_ref() {
+                    Some(io) => io.close(),
+                    None => Err(Error::NotSupported("IO device not available.".to_string())),
+                }
             } else {
                 Err(Error::NotSupported("io feature not enabled".to_string()))
             }
