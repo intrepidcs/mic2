@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.26)
+cmake_minimum_required(VERSION 3.25)
 project(libmic2 LANGUAGES C CXX)
 
 enable_testing()
