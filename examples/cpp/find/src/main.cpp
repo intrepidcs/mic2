@@ -15,41 +15,39 @@ int main(int argc, char* argv[]) {
     return 1;
   }
   std::cout << "Found " << devices.value().size() << " device(s)\n";
-  for (int i=0; i<50; ++i) {
-    for (auto& device : devices.value()) {
-      // Open IO
-      if (auto result = device.io_open(); !result.has_value()) {
-        std::cerr << "Failed to open " << device.get_serial_number() << ": "
-                  << result.error() << "\n";
-        continue;
-      } else {
-        std::cout << "Opened " << device.get_serial_number() << "\n";
-      }
-      // Enable Buzzer
-      if (auto result = device.io_buzzer_enable(true); !result.has_value()) {
-        std::cerr << "Failed to enable buzzer on " << device.get_serial_number()
-                  << ": " << result.error() << "\n";
-        continue;
-      } else {
-        std::cout << "Enabled buzzer on " << device.get_serial_number() << "\n";
-      }
-      // Wait for buzzer to make some noise
-      std::this_thread::sleep_for(std::chrono::milliseconds(50));
-      if (auto result = device.io_buzzer_enable(false); !result.has_value()) {
-        std::cerr << "Failed to disable buzzer on " << device.get_serial_number()
-                  << ": " << result.error() << "\n";
-        continue;
-      } else {
-        std::cout << "Disabled buzzer on " << device.get_serial_number() << "\n";
-      }
-      // Close IO
-      if (auto result = device.io_close(); !result.has_value()) {
-        std::cerr << "Failed to close " << device.get_serial_number() << ": "
-                  << result.error() << "\n";
-        continue;
-      } else {
-        std::cout << "Closed " << device.get_serial_number() << "\n";
-      }
+  for (auto& device : devices.value()) {
+    // Open IO
+    if (auto result = device.io_open(); !result.has_value()) {
+      std::cerr << "Failed to open " << device.get_serial_number() << ": "
+                << result.error() << "\n";
+      continue;
+    } else {
+      std::cout << "Opened " << device.get_serial_number() << "\n";
+    }
+    // Enable Buzzer
+    if (auto result = device.io_buzzer_enable(true); !result.has_value()) {
+      std::cerr << "Failed to enable buzzer on " << device.get_serial_number()
+                << ": " << result.error() << "\n";
+      continue;
+    } else {
+      std::cout << "Enabled buzzer on " << device.get_serial_number() << "\n";
+    }
+    // Wait for buzzer to make some noise
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    if (auto result = device.io_buzzer_enable(false); !result.has_value()) {
+      std::cerr << "Failed to disable buzzer on " << device.get_serial_number()
+                << ": " << result.error() << "\n";
+      continue;
+    } else {
+      std::cout << "Disabled buzzer on " << device.get_serial_number() << "\n";
+    }
+    // Close IO
+    if (auto result = device.io_close(); !result.has_value()) {
+      std::cerr << "Failed to close " << device.get_serial_number() << ": "
+                << result.error() << "\n";
+      continue;
+    } else {
+      std::cout << "Closed " << device.get_serial_number() << "\n";
     }
   }
 
