@@ -25,7 +25,7 @@ const NEOVI_MIC_GPS_VID: u16 = 0x1546;
 /// neoVI MIC2 GPS Product ID.
 const NEOVI_MIC_GPS_PID: u16 = 0x1A8;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum UsbDeviceType {
     MicrochipHub,
     FT245R,

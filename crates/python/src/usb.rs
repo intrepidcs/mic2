@@ -1,4 +1,4 @@
-use std::sync::{Mutex, Arc};
+use std::sync::{Arc, Mutex};
 
 use neovi_mic_rs::mic::UsbDeviceInfo;
 use pyo3::prelude::*;
@@ -16,16 +16,25 @@ impl PyUsbDeviceInfo {
     }
 
     fn __str__(&self) -> String {
-        let serial = match &self.0.lock().unwrap().serial_number {
-            Some(s) => s.clone(),
-            None => "None".to_string(),
+        let usb_info = self.0.lock().unwrap();
+        let serial = match &usb_info.serial_number {
+            Some(s) => s.as_str(),
+            None => "None",
         };
-        format!("NeoVI MIC2 {serial}").to_string()
+        format!(
+            "{:?} VID: {:#x} PID: {:#x} Bus: {:#x} Addr: {:#x} Serial: {serial}",
+            usb_info.device_type,
+            usb_info.vendor_id,
+            usb_info.product_id,
+            usb_info.bus_number,
+            usb_info.address
+        )
+        .to_string()
     }
 
     fn __repr__(&self) -> String {
         let description = self.__str__();
-        format!("<NeoDevice {description}>").to_string()
+        format!("<UsbDeviceInfo <{description}>>").to_string()
     }
 
     #[getter]
@@ -48,12 +57,16 @@ impl PyUsbDeviceInfo {
         Ok(self.0.lock().unwrap().address)
     }
 
-    /* TODO
     #[getter]
     fn device_type(&self) -> PyResult<u32> {
-        Ok(self.0.lock().unwrap().device_type.into())
+        let usb_dev_type = self.0.lock().unwrap();
+        Ok(usb_dev_type.device_type as u32)
     }
-    */
+
+    #[getter]
+    fn device_type_as_str_string(&self) -> PyResult<String> {
+        Ok(format!("{:?}", self.0.lock().unwrap().device_type))
+    }
 }
 
 impl PyUsbDeviceInfo {
