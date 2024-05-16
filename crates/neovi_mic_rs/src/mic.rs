@@ -110,7 +110,8 @@ pub fn find_neovi_mics() -> Result<Vec<NeoVIMIC>> {
     for rusb_device in rusb::devices().unwrap().iter() {
         let device = UsbDeviceInfo::from_rusb_device(&rusb_device, None);
         // Are we the hub? 0424:2514 Microchip Technology, Inc. (formerly SMSC) USB 2.0 Hub
-        if device.vendor_id == 0x0424 || device.product_id == 0x2514 {
+        // neoVI PI has a microchip hub also with the same VID but PID 0x2507
+        if device.vendor_id == NEOVI_MIC_HUB_VID && device.product_id == NEOVI_MIC_HUB_PID {
             usb_hubs.push(device);
         }
     }
