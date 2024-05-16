@@ -3,5 +3,8 @@ resolver = "2"
 members = [
     "crates/mic2_rs",
     "crates/pymic2",
-    "crates/libmic2", "examples/rust/find",
+    "crates/libmic2",
+]
+exclude = [
+    "examples/rust/find",
 ]

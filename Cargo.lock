@@ -227,6 +227,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "658bd65b1cf4c852a3cc96f18a8ce7b5640f6b703f905c7d74532294c2a63984"
 
 [[package]]
+name = "find"
+version = "0.1.0"
+
+[[package]]
 name = "funty"
 version = "2.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -346,7 +350,7 @@ dependencies = [
  "cbindgen",
  "cc",
  "cmake",
- "neovi_mic_rs",
+ "mic2",
  "path-clean",
 ]
 
@@ -447,22 +451,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "minimal-lexical"
-version = "0.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "68354c5c6bd36d73ff3feceb05efa59b6acb7626617f4962be322a825e61f79a"
-
-[[package]]
-name = "neovi_mic_python"
-version = "0.1.0"
-dependencies = [
- "chrono",
- "neovi_mic_rs",
- "pyo3",
-]
-
-[[package]]
-name = "neovi_mic_rs"
+name = "mic2"
 version = "0.1.0"
 dependencies = [
  "bitflags 2.3.3",
@@ -478,6 +467,21 @@ dependencies = [
  "serialport",
  "sfml",
 ]
+
+[[package]]
+name = "mic2_python"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "mic2",
+ "pyo3",
+]
+
+[[package]]
+name = "minimal-lexical"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "68354c5c6bd36d73ff3feceb05efa59b6acb7626617f4962be322a825e61f79a"
 
 [[package]]
 name = "nix"
