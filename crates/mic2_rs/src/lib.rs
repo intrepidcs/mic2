@@ -14,3 +14,4 @@ pub mod audio;
 pub mod io;
 
 pub mod mic;
+pub use mic::*;

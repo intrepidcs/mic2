@@ -6,7 +6,7 @@ use std::sync::{Arc, Mutex};
 
 use pyo3::prelude::*;
 
-use ::mic2::mic::{find_neovi_mics, NeoVIMIC};
+use ::mic2::{find_neovi_mics, NeoVIMIC};
 use usb::PyUsbDeviceInfo;
 
 use gps::{PyGPSDMS, PyGPSInfo, PyGPSSatInfo};

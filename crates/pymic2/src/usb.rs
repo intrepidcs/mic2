@@ -1,6 +1,6 @@
 use std::sync::{Arc, Mutex};
 
-use mic2::mic::UsbDeviceInfo;
+use mic2::UsbDeviceInfo;
 use pyo3::prelude::*;
 
 use crate::utils::create_python_object;
