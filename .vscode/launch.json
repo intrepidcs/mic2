@@ -7,16 +7,16 @@
         {
             "type": "lldb",
             "request": "launch",
-            "name": "Debug unit tests in library 'neovi_mic_rs'",
+            "name": "Debug unit tests in library 'mic2_rs'",
             "cargo": {
                 "args": [
                     "test",
                     "--no-run",
                     "--lib",
-                    "--package=neovi_mic_rs"
+                    "--package=mic2_rs"
                 ],
                 "filter": {
-                    "name": "neovi_mic_rs",
+                    "name": "mic2_rs",
                     "kind": "lib"
                 }
             },

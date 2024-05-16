@@ -28,6 +28,7 @@ int main(int argc, char* argv[]) {
     std::cout << "Opened " << device.get_serial_number() << "\n";
   }
 
+  /*
   bool gps_has_lock = false;
   while (!gps_has_lock) {
     std::cout << "Waiting for GPS lock...\n";
@@ -43,6 +44,7 @@ int main(int argc, char* argv[]) {
     std::cerr << "Failed to get lock\n";
     return 1;
   }
+  */
   while (true) {
     std::this_thread::sleep_for(std::chrono::milliseconds(500));
     if (auto result = device.gps_info(); !result.has_value()) {

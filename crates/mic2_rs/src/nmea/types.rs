@@ -287,7 +287,7 @@ impl GPSDMS {
     /// Example: ddmm.mm
     /// 4404.14036
     /// ```
-    /// use neovi_mic_rs::nmea::types::GPSDMS;
+    /// use mic2::nmea::types::GPSDMS;
     ///
     /// let dms = GPSDMS::from_nmea_str("3888.97").unwrap();
     /// println!("{dms:#?} {}", dms.to_decimal());
@@ -344,7 +344,7 @@ impl GPSDMS {
     ///
     /// Example:
     /// ```
-    /// use neovi_mic_rs::nmea::types::GPSDMS;
+    /// use mic2::nmea::types::GPSDMS;
     ///
     /// let dms = GPSDMS::from_decimal(38.8897_f64);
     /// println!("{dms:#?} {}", dms.to_decimal());
@@ -373,7 +373,7 @@ impl GPSDMS {
     ///
     /// Example:
     /// ```
-    /// use neovi_mic_rs::nmea::types::GPSDMS;
+    /// use mic2::nmea::types::GPSDMS;
     ///
     /// let latitude_dms = GPSDMS { degrees: 38, minutes: 53, seconds: 23 };
     /// let latitude_decimal = latitude_dms.to_decimal();

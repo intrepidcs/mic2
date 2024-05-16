@@ -1,5 +1,5 @@
 use core::slice;
-use neovi_mic_rs::{mic, nmea::types::{GPSInfo, GPSSatInfo, GpsNavigationStatus, GPSDMS}};
+use mic2::{mic, nmea::types::{GPSInfo, GPSSatInfo, GpsNavigationStatus, GPSDMS}};
 use std::{
     ffi::{c_void, CStr, CString},
     os::raw::c_char,

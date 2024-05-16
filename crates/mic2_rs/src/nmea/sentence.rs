@@ -15,8 +15,8 @@ impl NMEASentence {
     ///
     /// Example:
     /// ```
-    /// use neovi_mic_rs::nmea::sentence::NMEASentence;
-    /// use neovi_mic_rs::nmea::types::NMEASentenceType;
+    /// use mic2::nmea::sentence::NMEASentence;
+    /// use mic2::nmea::types::NMEASentenceType;
     ///
     /// let sentence =
     /// NMEASentence::new("$GPGST,182141.000,15.5,15.3,7.2,21.8,0.9,0.5,0.8*54").unwrap();

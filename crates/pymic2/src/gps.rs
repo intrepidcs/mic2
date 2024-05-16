@@ -1,7 +1,7 @@
 use std::sync::{Arc, Mutex};
 use pyo3::{exceptions::PyValueError, prelude::*};
 
-use neovi_mic_rs::nmea::types::{GPSInfo, GPSDMS, GpsNavigationStatus, GPSSatInfo};
+use mic2::nmea::types::{GPSInfo, GPSDMS, GpsNavigationStatus, GPSSatInfo};
 
 use crate::utils::create_python_object;
 

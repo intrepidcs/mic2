@@ -6,7 +6,7 @@ use std::sync::{Arc, Mutex};
 
 use pyo3::prelude::*;
 
-use neovi_mic_rs::mic::{find_neovi_mics, NeoVIMIC};
+use ::mic2::mic::{find_neovi_mics, NeoVIMIC};
 use usb::PyUsbDeviceInfo;
 
 use gps::{PyGPSDMS, PyGPSInfo, PyGPSSatInfo};
@@ -161,7 +161,7 @@ impl PyNeoVIMIC {
 
 /// A Python module implemented in Rust.
 #[pymodule]
-fn neovi_mic(m: &Bound<'_, PyModule>) -> PyResult<()> {
+fn pymic2(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PyNeoVIMIC>()?;
     m.add_class::<PyUsbDeviceInfo>()?;
     m.add_class::<PyGPSInfo>()?;

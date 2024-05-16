@@ -1,7 +1,7 @@
 [workspace]
 resolver = "2"
 members = [
-    "crates/neovi_mic_rs",
-    "crates/python",
-    "crates/libmic2",
+    "crates/mic2_rs",
+    "crates/pymic2",
+    "crates/libmic2", "examples/rust/find",
 ]

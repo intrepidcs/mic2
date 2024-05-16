@@ -1,11 +1,17 @@
-import neovi_mic
+import pymic2
 import time
 
 if __name__ == "__main__":
-    devices = neovi_mic.find()
-    print(f"Found {len(devices)}...")
+    devices = pymic2.find()
+    print(f"Found {len(devices)} device(s)...")
     
-    mic = devices[0]
+    for device in devices:
+        mic = device
+        if mic.has_gps():
+            break
+    if not mic.has_gps():
+        raise RuntimeError("No GPS found...")
+
     mic.gps_open()
     while not mic.gps_has_lock():
         print("Waiting for GPS lock...")

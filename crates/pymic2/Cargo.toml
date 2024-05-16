@@ -1,16 +1,16 @@
 [package]
-name = "neovi_mic_python"
+name = "mic2_python"
 version = "0.1.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [lib]
-name = "neovi_mic"
+name = "pymic2"
 crate-type = ["cdylib"]
 
 [dependencies]
 chrono = "0.4.26"
 pyo3 = { version = "0.21.0", features = ["chrono", "extension-module"] }
 
-[dependencies.neovi_mic_rs]
-path = "../neovi_mic_rs"
+[dependencies.mic2]
+path = "../mic2_rs"
