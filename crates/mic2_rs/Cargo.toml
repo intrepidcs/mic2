@@ -5,7 +5,7 @@ edition = "2021"
 license = "MIT"
 repository = "https://github.com/intrepidcs/mic2"
 authors = ["David Rebbe <drebbe@intrepidcs.com>"]
-readme = "../../readme.md"
+readme = "README.md"
 description = "Rust API for neoVI MIC2"
 keywords = ["neoVI", "MIC2", "Intrepid", "ICS", "Intrepid Control System"]
 

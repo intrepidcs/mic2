@@ -4,9 +4,9 @@
 
 ![neoVI MIC2 Picture](neoVI-MIC-2.png)
 
-[![crates.io](https://img.shields.io/crates/v/neovi-mic.svg)](https://crates.io/crates/neovi_mic)
-[![docs.rs](https://docs.rs/neovi_mic/badge.svg)](https://docs.rs/neovi_mic/)
-<!-- [![CI](https://github.com/intrepidcs/neovi_mic/workflows/CI/badge.svg)](https://github.com/intrepidcs/neovi_mic/actions) -->
+[![crates.io](https://img.shields.io/crates/v/neovi-mic.svg)](https://crates.io/crates/mic2)
+[![docs.rs](https://docs.rs/mic2/badge.svg)](https://docs.rs/mic2/)
+<!-- [![CI](https://github.com/intrepidcs/mic2/workflows/CI/badge.svg)](https://github.com/intrepidcs/mic2/actions) -->
 
 ## **Description**
 
@@ -39,11 +39,11 @@ sudo udevadm control --reload-rules && sudo udevadm trigger
 
 ### **Rust**
 
-`cargo add neovi_mic`
+`cargo add mic2`
 
 ### **Python**
 
-`pip install neovi_mic`
+`pip install pymic2`
 
 
 ### **C/C++**
@@ -63,7 +63,7 @@ $ ./examples/c/find/example_find_c
 
 ## **Development**
 
-`neovi_mic` uses [Rust](https://www.rust-lang.org/) to build the APIs for all language bindings. See below for dependencies and other instructions for how to develop for `neovi_mic`
+`mic2` uses [Rust](https://www.rust-lang.org/) to build the APIs for all language bindings. See below for dependencies and other instructions for how to develop for `mic2`
 
 ### **Dependencies**
 
