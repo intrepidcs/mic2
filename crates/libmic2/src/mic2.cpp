@@ -190,3 +190,12 @@ auto mic2::find() -> std::expected<std::vector<CNeoVIMIC>, NeoVIMICErrType> {
   }
   return devices;
 }
+
+auto mic2::error_string(NeoVIMICErrType err) -> std::string {
+  char buffer[1024] = {};
+  uint32_t length = 1024;
+  if (auto res = mic2_error_string(err, buffer, &length); res != NeoVIMICErrTypeSuccess) {
+    return "mic2_error_string() failed to retreive error string";
+  }
+  return buffer;
+}

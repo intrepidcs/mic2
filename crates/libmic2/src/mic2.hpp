@@ -49,5 +49,6 @@ private:
 };
 
 auto find() -> std::expected<std::vector<CNeoVIMIC>, NeoVIMICErrType>;
+auto error_string(NeoVIMICErrType err) -> std::string;
 
 }; // namespace mic2
