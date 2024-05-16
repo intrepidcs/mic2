@@ -49,9 +49,8 @@ sudo udevadm control --reload-rules && sudo udevadm trigger
 ### **C/C++**
 
 ```bash
-$ mkdir build && cd build
-$ cmake .. -DBUILD_EXAMPLES=on -DCMAKE_BUILD_TYPE=Debug 
-$ make 
+$ cmake -S . -B build -DBUILD_EXAMPLES=ON -DCMAKE_BUILD_TYPE=Debug
+$ cmake --build build
 $ ./examples/c/find/example_find_c
 ```
 
@@ -74,7 +73,10 @@ $ ./examples/c/find/example_find_c
 - [Python 3.7 - 3.10](http://python.org) (>=3.11 broken for WASM currently [See issue here](https://github.com/wasmerio/wasmer-python/issues/696))
 
 ##### Debian/Ubuntu
-- ```sudo apt-get install libsfml-dev libudev-dev```
+- ```sudo apt-get install libsfml-dev libudev-dev libftdi1-dev```
+
+*Optional for C/C++:*
+- ```sudo apt-get install cmake build-essential```
 
 ##### OpenSUSE
 
