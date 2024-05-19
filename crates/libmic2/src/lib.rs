@@ -3,7 +3,8 @@ use mic2::{mic, nmea::types::{GPSInfo, GPSSatInfo, GpsNavigationStatus, GPSDMS}}
 use std::{
     ffi::{c_void, CStr, CString},
     os::raw::c_char,
-    sync::{Arc, Mutex},
+    sync::Mutex,
+    rc::Rc,
 };
 
 // Version of the API in use. This will allow forward compatibility without having to recompile your application, unless otherwise specified.
@@ -11,13 +12,13 @@ pub const MIC2_API_VERSION: u32 = 0x1;
 
 #[derive(Debug, Clone)]
 pub struct NeoVIMICHandle {
-    inner: Arc<Mutex<mic::NeoVIMIC>>,
+    inner: Rc<Mutex<mic::NeoVIMIC>>,
 }
 
 impl NeoVIMICHandle {
     pub fn from(neovi_mic: mic::NeoVIMIC) -> Self {
         Self {
-            inner: Arc::new(Mutex::new(neovi_mic)),
+            inner: Rc::new(Mutex::new(neovi_mic)),
         }
     }
 }
