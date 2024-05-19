@@ -81,7 +81,7 @@ impl PacketHeader {
     /// Take bytes and convert to [u8; 2]
     fn be_u8(input: &[u8]) -> IResult<&[u8], u8> {
         let (input, value) = be_u8(input)?;
-        Ok((input, value.try_into().unwrap()))
+        Ok((input, value))
     }
 
     /// Take length bytes and convert to Vec<u8>
@@ -113,10 +113,10 @@ impl PacketHeader {
         let (_input, ck_b) = Self::be_u8(input)?;
 
         Ok(Self {
-            header: header.try_into().unwrap(),
+            header,
             class: ClassField::try_from(class)?,
             id,
-            payload: payload,
+            payload,
             ck_a,
             ck_b,
         })

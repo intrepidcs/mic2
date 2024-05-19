@@ -1,4 +1,3 @@
-///! NMEA data types
 // https://gpsd.gitlab.io/gpsd/NMEA.html
 use chrono::{NaiveDate, NaiveDateTime, NaiveTime};
 use std::{
@@ -267,10 +266,9 @@ fn round_f64(f: f64, p: i32, round_up: bool) -> f64 {
     // round up
     let mut f = f;
     if f != 0.0 && round_up {
-        f = f + (5.0 / multiplier);
+        f += 5.0 / multiplier;
     }
-    let result = (f * multiplier).round() / multiplier;
-    result
+    (f * multiplier).round() / multiplier
 }
 
 impl GPSDMS {
@@ -296,15 +294,15 @@ impl GPSDMS {
     pub fn from_nmea_str(value: impl Into<String>) -> Result<Self, NMEAError> {
         let dd_mm: &str = &value.into();
         // Check the length is at least 6 DDMM.MM
-        if dd_mm.len() < 7 || !dd_mm.contains(".") {
+        if dd_mm.len() < 7 || !dd_mm.contains('.') {
             return Err(NMEAError::InvalidData(
-                format!("Couldn't convert value {} into a valid GPS DMS", &dd_mm).into(),
+                format!("Couldn't convert value {} into a valid GPS DMS", &dd_mm),
             ));
         }
-        let values: Vec<&str> = dd_mm.split(".").collect();
+        let values: Vec<&str> = dd_mm.split('.').collect();
         if values.len() < 2 {
             return Err(NMEAError::InvalidData(
-                format!("Couldn't convert value {} into a valid GPS DMS", &dd_mm).into(),
+                format!("Couldn't convert value {} into a valid GPS DMS", &dd_mm),
             ));
         }
         let (degrees, minutes, seconds) = if values[1].len() <= 2 {
@@ -443,7 +441,7 @@ impl GpsDataFromNmeaString for GstData {
                     ))
                 } else {
                     Ok(GstData {
-                        fix_timestamp: NaiveTime::parse_from_str(&items[1], "%H%M%S.3f").ok(),
+                        fix_timestamp: NaiveTime::parse_from_str(items[1], "%H%M%S.3f").ok(),
                         rms_dev: items[2].parse::<f32>().ok(),
                         semi_major_dev: items[3].parse::<f32>().ok(),
                         semi_minor_dev: items[4].parse::<f32>().ok(),
@@ -546,8 +544,8 @@ impl GpsDataFromNmeaString for GsaData {
                         _ => GsaMode::Unknown(items[2].to_string()),
                     };
                     Ok(GsaData {
-                        selection_mode: selection_mode,
-                        mode: mode,
+                        selection_mode,
+                        mode,
                         prn_numbers: items[3..=14].iter().map(|v| v.parse::<u8>().ok()).collect(),
                         pdop: items[15].parse::<f64>().ok(),
                         hdop: items[16].parse::<f64>().ok(),
@@ -896,7 +894,7 @@ impl GpsDataFromNmeaString for Pubx00Data {
                     ))
                 } else {
                     Ok(Pubx00Data {
-                        current_time: NaiveTime::parse_from_str(&items[2], "%H%M%S.%f").ok(),
+                        current_time: NaiveTime::parse_from_str(items[2], "%H%M%S.%f").ok(),
                         latitude: GPSDMS::from_nmea_str(items[3])?,
                         n: items[4].chars().next().unwrap_or_default(),
                         longitude: GPSDMS::from_nmea_str(items[5])?,
@@ -1005,7 +1003,7 @@ impl GpsDataFromNmeaString for Pubx03Data {
                         })
                     }
                     Ok(Pubx03Data {
-                        satellites: satellites,
+                        satellites,
                     })
                 }
             }
@@ -1063,8 +1061,8 @@ impl GpsDataFromNmeaString for Pubx04Data {
                     ))
                 } else {
                     Ok(Pubx04Data {
-                        current_time: NaiveTime::parse_from_str(&items[2], "%H%M%S.%f").ok(),
-                        current_date: NaiveDate::parse_from_str(&items[3], "%d%m%y").ok(),
+                        current_time: NaiveTime::parse_from_str(items[2], "%H%M%S.%f").ok(),
+                        current_date: NaiveDate::parse_from_str(items[3], "%d%m%y").ok(),
                         time_of_week: items[4].parse::<f64>()?,
                         week_number: items[5].parse::<u16>().ok(),
                         leap_seconds: Some((
@@ -1208,11 +1206,8 @@ impl GPSInfo {
                 self.satellites = data.satellites.clone();
             }
             NMEASentenceType::PUBX04(data) => {
-                match (data.current_date, data.current_time) {
-                    (Some(date), Some(time)) => {
-                        self.current_time = Some(date.and_time(time));
-                    }
-                    _ => {}
+                if let (Some(date), Some(time)) = (data.current_date, data.current_time) {
+                     self.current_time = Some(date.and_time(time));
                 }
                 self.clock_bias = Some(data.clock_bias);
                 self.clock_drift = Some(data.clock_drift);
