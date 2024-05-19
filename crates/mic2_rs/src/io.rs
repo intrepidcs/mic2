@@ -98,7 +98,7 @@ impl IO {
             -10 => "unable to close device".into(),
             -11 => "ftdi context invalid".into(),
             -12 => "libusb_get_device_list() failed".into(),
-            _ => format!("Unknown error code: {result}").into(),
+            _ => format!("Unknown error code: {result}"),
         };
         if result != 0 {
             return Err(crate::types::Error::CriticalError(error_code));
@@ -113,7 +113,7 @@ impl IO {
             0 => "all fine".into(),
             -1 => "usb_release failed".into(),
             -3 => "ftdi context invalid".into(),
-            _ => format!("Unknown error code: {result}").into(),
+            _ => format!("Unknown error code: {result}"),
         };
         if result != 0 {
             return Err(crate::types::Error::CriticalError(error_code));
@@ -123,8 +123,8 @@ impl IO {
     }
 
     /// Enable/disable bitbang modes.
-    /// bitmask	Bitmask to configure lines. HIGH/ON value configures a line as output.
-    /// mode	Bitbang mode: use the values defined in ftdi_mpsse_mode
+    /// bitmask Bitmask to configure lines. HIGH/ON value configures a line as output.
+    /// mode    Bitbang mode: use the values defined in ftdi_mpsse_mode
     ///
     /// CBUS0 = Buzzer
     /// CBUS1 = Button
@@ -146,7 +146,7 @@ impl IO {
             0 => "all fine".into(),
             -1 => "can't enable bitbang mode".into(),
             -2 => "USB device unavailable".into(),
-            _ => format!("Unknown error code: {result}").into(),
+            _ => format!("Unknown error code: {result}"),
         };
         if result != 0 {
             return Err(crate::types::Error::CriticalError(error_code));
@@ -155,8 +155,8 @@ impl IO {
     }
 
     /// Enable/disable bitbang modes.
-    /// bitmask	Bitmask to configure lines. HIGH/ON value configures a line as output.
-    /// mode	Bitbang mode: use the values defined in ftdi_mpsse_mode
+    /// bitmask Bitmask to configure lines. HIGH/ON value configures a line as output.
+    /// mode    Bitbang mode: use the values defined in ftdi_mpsse_mode
     ///
     /// CBUS0 = Buzzer
     /// CBUS1 = Button
@@ -181,7 +181,7 @@ impl IO {
             0 => "all fine".into(),
             -1 => "read pins failed".into(),
             -2 => "USB device unavailable".into(),
-            _ => format!("Unknown error code: {result}").into(),
+            _ => format!("Unknown error code: {result}"),
         };
         if result != 0 {
             return Err(crate::types::Error::CriticalError(error_code));

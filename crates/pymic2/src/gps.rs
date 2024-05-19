@@ -45,13 +45,8 @@ impl PyGPSInfo {
     }
 
     fn __str__(&self) -> String {
-        /*
-        let (latitude, ns) = match &self.0.lock().unwrap().latitude {
-            Some((dms, dir)) => format!("{} {} {}", dms.),
-            None => "None".to_string(),
-        };
-        */
-        format!("GPSInfo TODO!").to_string()
+        let gps_info = &self.0.lock().unwrap();
+        format!("{gps_info:?}")
     }
 
     fn __repr__(&self) -> String {
@@ -63,28 +58,28 @@ impl PyGPSInfo {
     fn current_time(&self, py: Python) -> PyResult<PyObject> {
         match self.0.lock().unwrap().current_time {
             Some(current_time) => Ok(current_time.to_object(py)),
-            None => Err(PyErr::from(PyValueError::new_err("current_time not valid"))),
+            None => Err(PyValueError::new_err("current_time not valid")),
         }
     }
 
     fn latitude(&self) -> PyResult<(PyGPSDMS, char)> {
         match self.0.lock().unwrap().latitude {
             Some((dms, dir)) => Ok((PyGPSDMS::from(dms), dir)),
-            None => Err(PyErr::from(PyValueError::new_err("latitude not valid"))),
+            None => Err(PyValueError::new_err("latitude not valid")),
         }
     }
 
     fn longitude(&self) -> PyResult<(PyGPSDMS, char)> {
         match self.0.lock().unwrap().longitude {
             Some((dms, dir)) => Ok((PyGPSDMS::from(dms), dir)),
-            None => Err(PyErr::from(PyValueError::new_err("longitude not valid"))),
+            None => Err(PyValueError::new_err("longitude not valid")),
         }
     }
 
     fn nav_stat(&self) -> PyResult<PyGpsNavigationStatus> {
         match self.0.lock().unwrap().nav_stat {
             Some(nav_stat) => Ok(PyGpsNavigationStatus::from(nav_stat)),
-            None => Err(PyErr::from(PyValueError::new_err("nav_stat not valid"))),
+            None => Err(PyValueError::new_err("nav_stat not valid")),
         }
     }
 
@@ -92,7 +87,7 @@ impl PyGPSInfo {
         Ok(self.0.lock().unwrap().satellites
         .clone()
         .into_iter()
-        .map(|x| PyGPSSatInfo::from(x))
+        .map(PyGPSSatInfo::from)
         .collect::<Vec<PyGPSSatInfo>>())
     }
 
@@ -100,7 +95,7 @@ impl PyGPSInfo {
     fn altitude(&self) -> PyResult<f64> {
         match self.0.lock().unwrap().altitude {
             Some(altitude) => Ok(altitude),
-            None => Err(PyErr::from(PyValueError::new_err("altitude not valid"))),
+            None => Err(PyValueError::new_err("altitude not valid")),
         }
     }
 
@@ -108,7 +103,7 @@ impl PyGPSInfo {
     fn h_acc(&self) -> PyResult<f64> {
         match self.0.lock().unwrap().h_acc {
             Some(h_acc) => Ok(h_acc),
-            None => Err(PyErr::from(PyValueError::new_err("h_acc not valid"))),
+            None => Err(PyValueError::new_err("h_acc not valid")),
         }
     }
 
@@ -116,7 +111,7 @@ impl PyGPSInfo {
     fn v_acc(&self) -> PyResult<f64> {
         match self.0.lock().unwrap().v_acc {
             Some(v_acc) => Ok(v_acc),
-            None => Err(PyErr::from(PyValueError::new_err("v_acc not valid"))),
+            None => Err(PyValueError::new_err("v_acc not valid")),
         }
     }
 
@@ -124,7 +119,7 @@ impl PyGPSInfo {
     fn sog_kmh(&self) -> PyResult<f64> {
         match self.0.lock().unwrap().v_acc {
             Some(v_acc) => Ok(v_acc),
-            None => Err(PyErr::from(PyValueError::new_err("v_acc not valid"))),
+            None => Err(PyValueError::new_err("v_acc not valid")),
         }
     }
 
@@ -132,7 +127,7 @@ impl PyGPSInfo {
     fn cog(&self) -> PyResult<f64> {
         match self.0.lock().unwrap().cog {
             Some(cog) => Ok(cog),
-            None => Err(PyErr::from(PyValueError::new_err("cog not valid"))),
+            None => Err(PyValueError::new_err("cog not valid")),
         }
     }
 
@@ -140,7 +135,7 @@ impl PyGPSInfo {
     fn vvel(&self) -> PyResult<f64> {
         match self.0.lock().unwrap().vvel {
             Some(vvel) => Ok(vvel),
-            None => Err(PyErr::from(PyValueError::new_err("vvel not valid"))),
+            None => Err(PyValueError::new_err("vvel not valid")),
         }
     }
 
@@ -148,7 +143,7 @@ impl PyGPSInfo {
     fn age_c(&self) -> PyResult<f64> {
         match self.0.lock().unwrap().age_c {
             Some(age_c) => Ok(age_c),
-            None => Err(PyErr::from(PyValueError::new_err("age_c not valid"))),
+            None => Err(PyValueError::new_err("age_c not valid")),
         }
     }
 
@@ -156,7 +151,7 @@ impl PyGPSInfo {
     fn hdop(&self) -> PyResult<f64> {
         match self.0.lock().unwrap().hdop {
             Some(hdop) => Ok(hdop),
-            None => Err(PyErr::from(PyValueError::new_err("hdop not valid"))),
+            None => Err(PyValueError::new_err("hdop not valid")),
         }
     }
 
@@ -164,7 +159,7 @@ impl PyGPSInfo {
     fn vdop(&self) -> PyResult<f64> {
         match self.0.lock().unwrap().vdop {
             Some(vdop) => Ok(vdop),
-            None => Err(PyErr::from(PyValueError::new_err("vdop not valid"))),
+            None => Err(PyValueError::new_err("vdop not valid")),
         }
     }
 
@@ -172,7 +167,7 @@ impl PyGPSInfo {
     fn tdop(&self) -> PyResult<f64> {
         match self.0.lock().unwrap().tdop {
             Some(tdop) => Ok(tdop),
-            None => Err(PyErr::from(PyValueError::new_err("tdop not valid"))),
+            None => Err(PyValueError::new_err("tdop not valid")),
         }
     }
 
@@ -180,7 +175,7 @@ impl PyGPSInfo {
     fn clock_bias(&self) -> PyResult<f64> {
         match self.0.lock().unwrap().clock_bias {
             Some(clock_bias) => Ok(clock_bias),
-            None => Err(PyErr::from(PyValueError::new_err("clock_bias not valid"))),
+            None => Err(PyValueError::new_err("clock_bias not valid")),
         }
     }
 
@@ -188,7 +183,7 @@ impl PyGPSInfo {
     fn clock_drift(&self) -> PyResult<f64> {
         match self.0.lock().unwrap().clock_drift {
             Some(clock_drift) => Ok(clock_drift),
-            None => Err(PyErr::from(PyValueError::new_err("clock_drift not valid"))),
+            None => Err(PyValueError::new_err("clock_drift not valid")),
         }
     }
 
@@ -196,7 +191,7 @@ impl PyGPSInfo {
     fn timepulse_granularity(&self) -> PyResult<f64> {
         match self.0.lock().unwrap().timepulse_granularity {
             Some(timepulse_granularity) => Ok(timepulse_granularity),
-            None => Err(PyErr::from(PyValueError::new_err("timepulse_granularity not valid"))),
+            None => Err(PyValueError::new_err("timepulse_granularity not valid")),
         }
     }
 }

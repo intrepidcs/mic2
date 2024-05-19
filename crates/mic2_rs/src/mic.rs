@@ -64,7 +64,7 @@ impl UsbDeviceInfo {
             bus_number: device.bus_number(),
             address: device.address(),
             device_type: Self::usb_device_type_from_vid_pid(&vendor_id, &product_id),
-            serial_number: serial_number,
+            serial_number,
         }
     }
 
@@ -163,7 +163,7 @@ pub fn find_neovi_mics() -> Result<Vec<NeoVIMIC>> {
                             .unwrap(),
                         Err(e) => {
                             // Probably an access denied error, udev rules correct?
-                            format!("{e}").into()
+                            format!("{e}")
                         }
                     };
                     let usb_info = UsbDeviceInfo::from_rusb_device(&device, Some(serial_number));
@@ -182,10 +182,7 @@ pub fn find_neovi_mics() -> Result<Vec<NeoVIMIC>> {
                     audio_usb_info = Some(UsbDeviceInfo::from_rusb_device(&device, None));
                     // See audio_device declaration above for information on how we are
                     // matching indexes here.
-                    audio = match audio_devices.get(i) {
-                        Some(audio_device) => Some(audio_device.clone()),
-                        None => None,
-                    };
+                    audio = audio_devices.get(i).cloned();
                 }
                 UsbDeviceType::Unknown => {
                     extra_usb_info.push(UsbDeviceInfo::from_rusb_device(&device, None));

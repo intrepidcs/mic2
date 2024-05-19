@@ -176,7 +176,7 @@ impl GPSDevice {
                 .timeout(Duration::from_millis(10))
                 .open()
                 .map_err(Error::SerialError)
-                .expect(format!("Failed to open port {}.", &port_name).as_str());
+                .unwrap_or_else(|_| panic!("Failed to open port {}.", &port_name));
             let mut buffer: Vec<u8> = vec![0; 1000];
 
             // setup the port
@@ -192,7 +192,7 @@ impl GPSDevice {
 
             // Disable all NEMA messages
             // 31.1.9 Messages overview
-            for i in vec![
+            for i in [
                 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0D, 0x0E, 0x0F,
                 0x40, 0x41, 0x42, 0x43, 0x44,
             ] {
@@ -230,16 +230,16 @@ impl GPSDevice {
                 // read the port
                 match port.read(buffer.as_mut_slice()) {
                     // This reader has reached its "end of file" and will likely no longer be able to produce bytes.
-                    Ok(size) if size == 0 => break,
+                    Ok(0) => break,
                     // Successfully read some bytes
                     Ok(size) => {
                         let data = if partial_complete {
                             partial_complete = false;
-                            partial_sentence.as_str().as_bytes()
+                            partial_sentence.as_bytes()
                         } else {
                             &buffer[..size]
                         };
-                        let packets = GPSPacket::new(&data);
+                        let packets = GPSPacket::new(data);
                         // Parse the packet
                         for packet in packets {
                             match &packet {
