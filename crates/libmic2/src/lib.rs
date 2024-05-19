@@ -325,7 +325,7 @@ extern "C" fn mic2_find(devices: *const NeoVIMIC, length: *mut u32, api_version:
     let mut found_devices = match mic::find_neovi_mics() {
         Ok(d) => d
             .into_iter()
-            .map(|x| NeoVIMICHandle::from(x))
+            .map(NeoVIMICHandle::from)
             .collect::<Vec<NeoVIMICHandle>>(),
         Err(_e) => return NeoVIMICErrType::NeoVIMICErrTypeFailure,
     };
@@ -789,12 +789,12 @@ extern "C" fn mic2_gps_info(device: *const NeoVIMIC, info: *mut CGPSInfo, info_s
 ///
 /// @return          None
 #[no_mangle]
-unsafe extern "C" fn mic2_free(device: *const NeoVIMIC) -> () {
+unsafe extern "C" fn mic2_free(device: *const NeoVIMIC) {
     if device.is_null() {
         return;
     }
     unsafe { 
         let device = &*device;
-        std::mem::drop(Box::from_raw(device.handle))
+        std::mem::drop(Box::from_raw(device.handle as *mut NeoVIMICHandle))
     };
 }
