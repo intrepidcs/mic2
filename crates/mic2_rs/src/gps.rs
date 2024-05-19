@@ -26,6 +26,7 @@ impl From<serialport::Error> for Error {
     }
 }
 
+#[allow(clippy::upper_case_acronyms)]
 #[derive(Debug)]
 enum GPSPacket {
     Ubx(ubx::PacketHeader),
@@ -40,7 +41,7 @@ enum GPSPacket {
 impl GPSPacket {
     pub fn new(bytes: &[u8]) -> Vec<Self> {
         let mut packets = Vec::new();
-        for packet in NMEASentence::from_bytes(&bytes) {
+        for packet in NMEASentence::from_bytes(bytes) {
             packets.push(match packet {
                 Ok(ns) => match ns.data() {
                     Ok(nst) => GPSPacket::NMEA(nst),
@@ -50,7 +51,7 @@ impl GPSPacket {
                 Err(NMEAError::Partial(s)) => Self::NMEAPartial(s),
                 Err(NMEAError::PartialEnd(s)) => Self::NMEAPartialEnd(s),
                 Err(NMEAError::InvalidMode(s)) => Self::Unsupported(bytes.to_vec(), s),
-                Err(NMEAError::InvalidData(_)) => match ubx::PacketHeader::from_bytes(&bytes) {
+                Err(NMEAError::InvalidData(_)) => match ubx::PacketHeader::from_bytes(bytes) {
                     Ok(p) => Self::Ubx(p),
                     Err(e) => Self::Unsupported(bytes.to_vec(), e.to_string()),
                 },
@@ -71,13 +72,12 @@ pub struct GPSDevice {
     /// baudrate of the port, typically UBLOX_DEFAULT_BAUD
     baud_rate: u32,
     /// If set to true, it tells the thread to shutdown.
-    shutdown_thread: Arc<AtomicBool>, 
+    shutdown_thread: Arc<AtomicBool>,
     /// thread sets this to true when the thread is running, otherwise false.
     thread_running: Arc<AtomicBool>,
     /// Whether the port is open or not
     is_open: Arc<AtomicBool>,
     gps_info: Arc<RwLock<GPSInfo>>,
-    
 }
 
 impl Drop for GPSDevice {
@@ -99,12 +99,10 @@ const UBLOX_DEFAULT_BAUD: u32 = 115200;
 
 impl GPSDevice {
     pub fn find(vid: &u16, pid: &u16) -> Option<Self> {
-        for device in Self::find_all().unwrap() {
-            if device.vid == *vid && device.pid == *pid {
-                return Some(device);
-            }
+        match Self::find_all() {
+            Ok(devices) => devices.into_iter().find(|d| d.vid == *vid && d.pid == *pid),
+            Err(_e) => None,
         }
-        None
     }
     pub fn find_all() -> Result<Vec<Self>> {
         let gps_devices: Vec<Self> = serialport::available_ports()?
@@ -142,7 +140,7 @@ impl GPSDevice {
     /// todo!()
     pub fn find_first() -> Result<Self> {
         let ports = Self::find_all()?;
-        if ports.len() == 0 {
+        if ports.is_empty() {
             Err(Error::InvalidDevice("No GPS Serial Ports found!".into()))
         } else {
             // Move instead of clone
@@ -307,7 +305,7 @@ impl GPSDevice {
             .store(true, Ordering::Relaxed);
         while self.thread_running.load(Ordering::Relaxed) {
             std::thread::sleep(std::time::Duration::from_millis(3));
-        };
+        }
         Ok(())
     }
 
@@ -369,7 +367,12 @@ mod tests {
         for _ in 0..1000 {
             std::thread::sleep(Duration::from_millis(1000));
             let info = gps_device.get_info().unwrap();
-            println!("Has Fix: {:?}\nSats: {:?}\nInfo: {:?}", gps_device.has_lock(), &info.satellites.len(), &info);
+            println!(
+                "Has Fix: {:?}\nSats: {:?}\nInfo: {:?}",
+                gps_device.has_lock(),
+                &info.satellites.len(),
+                &info
+            );
         }
         gps_device.close().unwrap();
     }

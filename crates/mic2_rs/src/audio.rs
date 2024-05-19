@@ -86,8 +86,7 @@ impl Audio {
                 format!(
                     "Failed to save capture from {} to file {}",
                     self.capture_name, fname
-                )
-                .into(),
+                ),
             ));
         }
         Ok(())
