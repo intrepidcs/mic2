@@ -1,6 +1,15 @@
 {
     "rust-analyzer.linkedProjects": [
-        "./crates/neovi_mic_rs/Cargo.toml"
+        "./crates/mic2_rs/Cargo.toml",
+        "./crates/pymic2/Cargo.toml",
+        "./crates/libmic2/Cargo.toml",
+    ],
+    "rust-analyzer.check.overrideCommand": [
+        "cargo",
+        "clippy",
+        "--message-format=json",
+        "--",
+        "--allow=dead-code"
     ],
     "terminal.integrated.env.windows": {
         "SFML_INCLUDE_DIR": "C:\\dev\\SFML-2.6.1\\include",
