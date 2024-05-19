@@ -198,9 +198,7 @@ impl PyGPSInfo {
 
 impl PyGPSInfo {
     pub fn from(gps_info: &GPSInfo) -> Self {
-        Self {
-            0: Arc::new(Mutex::new(gps_info.to_owned())),
-        }
+        Self (Arc::new(Mutex::new(gps_info.to_owned())))
     }
 }
 
@@ -216,7 +214,7 @@ impl PyGPSDMS {
     }
 
     fn __str__(&self) -> String {
-        format!("{}", self.0.lock().unwrap().to_string())
+        self.0.lock().unwrap().to_string()
     }
 
     fn __repr__(&self) -> String {
@@ -243,9 +241,7 @@ impl PyGPSDMS {
 
 impl PyGPSDMS {
     pub fn from(gps_dms: GPSDMS) -> Self {
-        Self {
-            0: Arc::new(Mutex::new(gps_dms.to_owned())),
-        }
+        Self(Arc::new(Mutex::new(gps_dms.to_owned())))
     }
 }
 
@@ -260,7 +256,7 @@ impl PyGPSSatInfo {
     }
 
     fn __str__(&self) -> String {
-        format!("{}", self.0.lock().unwrap().to_string())
+        self.0.lock().unwrap().to_string()
     }
 
     fn __repr__(&self) -> String {
@@ -282,7 +278,7 @@ impl PyGPSSatInfo {
     fn azimuth(&self) -> PyResult<u16> {
         match self.0.lock().unwrap().azimuth {
             Some(azimuth) => Ok(azimuth),
-            None => Err(PyErr::from(PyValueError::new_err("azimuth not valid"))),
+            None => Err(PyValueError::new_err("azimuth not valid")),
         }
     }
 
@@ -290,7 +286,7 @@ impl PyGPSSatInfo {
     fn elevation(&self) -> PyResult<u16> {
         match self.0.lock().unwrap().elevation {
             Some(elevation) => Ok(elevation),
-            None => Err(PyErr::from(PyValueError::new_err("elevation not valid"))),
+            None => Err(PyValueError::new_err("elevation not valid")),
         }
     }
 
@@ -298,7 +294,7 @@ impl PyGPSSatInfo {
     fn snr(&self) -> PyResult<u8> {
         match self.0.lock().unwrap().snr {
             Some(snr) => Ok(snr),
-            None => Err(PyErr::from(PyValueError::new_err("snr not valid"))),
+            None => Err(PyValueError::new_err("snr not valid")),
         }
     }
 
@@ -310,8 +306,6 @@ impl PyGPSSatInfo {
 
 impl PyGPSSatInfo {
     pub fn from(gps_sat_info: GPSSatInfo) -> Self {
-        Self {
-            0: Arc::new(Mutex::new(gps_sat_info.to_owned())),
-        }
+        Self(Arc::new(Mutex::new(gps_sat_info.to_owned())))
     }
 }
