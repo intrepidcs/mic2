@@ -199,7 +199,7 @@ pub struct CGPSInfo {
     /// TDOP, Time dilution of precision. -1 means invalid.
     pub tdop: f64,
     /// Number of GPS/GLONASS/Beidou satellites. Only valid indexes are defined by satellites_count.
-    pub satellites: [CGPSSatInfo; 16],
+    pub satellites: [CGPSSatInfo; 32],
     /// Number of valid GPS/GLONASS/Beidou satellites populated in satellites parameter.
     pub satellites_count: u8,
     /// Receiver clock bias (ns). -1 means invalid.
