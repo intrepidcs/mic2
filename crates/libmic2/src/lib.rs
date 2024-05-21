@@ -3,7 +3,8 @@ use mic2::{mic, nmea::types::{GPSInfo, GPSSatInfo, GpsNavigationStatus, GPSDMS}}
 use std::{
     ffi::{c_void, CStr, CString},
     os::raw::c_char,
-    sync::{Arc, Mutex},
+    sync::Mutex,
+    rc::Rc,
 };
 
 // Version of the API in use. This will allow forward compatibility without having to recompile your application, unless otherwise specified.
@@ -11,13 +12,13 @@ pub const MIC2_API_VERSION: u32 = 0x1;
 
 #[derive(Debug, Clone)]
 pub struct NeoVIMICHandle {
-    inner: Arc<Mutex<mic::NeoVIMIC>>,
+    inner: Rc<Mutex<mic::NeoVIMIC>>,
 }
 
 impl NeoVIMICHandle {
     pub fn from(neovi_mic: mic::NeoVIMIC) -> Self {
         Self {
-            inner: Arc::new(Mutex::new(neovi_mic)),
+            inner: Rc::new(Mutex::new(neovi_mic)),
         }
     }
 }
@@ -198,7 +199,7 @@ pub struct CGPSInfo {
     /// TDOP, Time dilution of precision. -1 means invalid.
     pub tdop: f64,
     /// Number of GPS/GLONASS/Beidou satellites. Only valid indexes are defined by satellites_count.
-    pub satellites: [CGPSSatInfo; 16],
+    pub satellites: [CGPSSatInfo; 32],
     /// Number of valid GPS/GLONASS/Beidou satellites populated in satellites parameter.
     pub satellites_count: u8,
     /// Receiver clock bias (ns). -1 means invalid.
@@ -324,7 +325,7 @@ extern "C" fn mic2_find(devices: *const NeoVIMIC, length: *mut u32, api_version:
     let mut found_devices = match mic::find_neovi_mics() {
         Ok(d) => d
             .into_iter()
-            .map(|x| NeoVIMICHandle::from(x))
+            .map(NeoVIMICHandle::from)
             .collect::<Vec<NeoVIMICHandle>>(),
         Err(_e) => return NeoVIMICErrType::NeoVIMICErrTypeFailure,
     };
@@ -788,12 +789,12 @@ extern "C" fn mic2_gps_info(device: *const NeoVIMIC, info: *mut CGPSInfo, info_s
 ///
 /// @return          None
 #[no_mangle]
-unsafe extern "C" fn mic2_free(device: *const NeoVIMIC) -> () {
+unsafe extern "C" fn mic2_free(device: *const NeoVIMIC) {
     if device.is_null() {
         return;
     }
     unsafe { 
         let device = &*device;
-        std::mem::drop(Box::from_raw(device.handle))
+        std::mem::drop(Box::from_raw(device.handle as *mut NeoVIMICHandle))
     };
 }

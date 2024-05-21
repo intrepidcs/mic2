@@ -4,7 +4,7 @@ pub mod utils;
 
 use std::sync::{Arc, Mutex};
 
-use pyo3::prelude::*;
+use pyo3::{exceptions::{PyRuntimeError, PyValueError}, prelude::*};
 
 use ::mic2::{find_neovi_mics, NeoVIMIC};
 use usb::PyUsbDeviceInfo;
@@ -18,7 +18,7 @@ fn find() -> PyResult<Vec<PyNeoVIMIC>> {
     let devices = find_neovi_mics()
         .unwrap()
         .into_iter()
-        .map(|x| PyNeoVIMIC::from(x))
+        .map(PyNeoVIMIC::from)
         .collect::<Vec<PyNeoVIMIC>>();
     Ok(devices)
 }
@@ -56,24 +56,15 @@ impl PyNeoVIMIC {
     }
 
     fn get_usb_io_info(&self) -> Option<PyUsbDeviceInfo> {
-        match self.0.lock().unwrap().get_usb_io_info() {
-            Some(info) => Some(PyUsbDeviceInfo::from(info)),
-            None => None,
-        }
+        self.0.lock().unwrap().get_usb_io_info().as_ref().map(PyUsbDeviceInfo::from)
     }
 
     fn get_usb_audio_info(&self) -> Option<PyUsbDeviceInfo> {
-        match self.0.lock().unwrap().get_usb_audio_info() {
-            Some(info) => Some(PyUsbDeviceInfo::from(info)),
-            None => None,
-        }
+        self.0.lock().unwrap().get_usb_audio_info().as_ref().map(PyUsbDeviceInfo::from)
     }
 
     fn get_usb_gps_info(&self) -> Option<PyUsbDeviceInfo> {
-        match self.0.lock().unwrap().get_usb_gps_info() {
-            Some(info) => Some(PyUsbDeviceInfo::from(info)),
-            None => None,
-        }
+        self.0.lock().unwrap().get_usb_gps_info().as_ref().map(PyUsbDeviceInfo::from)
     }
 
     fn get_usb_extra_info(&self) -> Vec<PyUsbDeviceInfo> {
@@ -82,64 +73,100 @@ impl PyNeoVIMIC {
             .unwrap()
             .get_usb_extra_info()
             .iter()
-            .map(|info| PyUsbDeviceInfo::from(info))
+            .map(PyUsbDeviceInfo::from)
             .collect()
     }
 
     fn io_open(&self) -> PyResult<()> {
-        Ok(self.0.lock().unwrap().io_open().unwrap())
+        match self.0.lock().unwrap().io_open() {
+            Ok(v) => Ok(v),
+            Err(e) => Err(PyValueError::new_err(e.to_string())),
+        }
     }
 
     fn io_close(&self) -> PyResult<()> {
-        Ok(self.0.lock().unwrap().io_close().unwrap())
+        match self.0.lock().unwrap().io_close() {
+            Ok(v) => Ok(v),
+            Err(e) => Err(PyValueError::new_err(e.to_string())),
+        }
     }
 
     fn io_is_open(&self) -> PyResult<bool> {
-        Ok(self.0.lock().unwrap().io_is_open().unwrap())
+        match self.0.lock().unwrap().io_is_open() {
+            Ok(v) => Ok(v),
+            Err(e) => Err(PyValueError::new_err(e.to_string())),
+        }
     }
 
     fn io_buzzer_enable(&self, enabled: bool) -> PyResult<()> {
-        Ok(self.0.lock().unwrap().io_buzzer_enable(enabled).unwrap())
+        match self.0.lock().unwrap().io_buzzer_enable(enabled) {
+            Ok(v) => Ok(v),
+            Err(e) => Err(PyValueError::new_err(e.to_string())),
+        }
     }
 
     fn io_buzzer_is_enabled(&self) -> PyResult<bool> {
-        Ok(self.0.lock().unwrap().io_buzzer_is_enabled().unwrap())
+        match self.0.lock().unwrap().io_buzzer_is_enabled() {
+            Ok(v) => Ok(v),
+            Err(e) => Err(PyValueError::new_err(e.to_string())),
+        }
     }
 
     fn io_gpsled_enable(&self, enabled: bool) -> PyResult<()> {
-        Ok(self.0.lock().unwrap().io_gpsled_enable(enabled).unwrap())
+        match self.0.lock().unwrap().io_gpsled_enable(enabled) {
+            Ok(v) => Ok(v),
+            Err(e) => Err(PyValueError::new_err(e.to_string())),
+        }
     }
 
     fn io_gpsled_is_enabled(&self) -> PyResult<bool> {
-        Ok(self.0.lock().unwrap().io_gpsled_is_enabled().unwrap())
+        match self.0.lock().unwrap().io_gpsled_is_enabled() {
+            Ok(v) => Ok(v),
+            Err(e) => Err(PyValueError::new_err(e.to_string())),
+        }
     }
 
     fn io_button_is_pressed(&self) -> PyResult<bool> {
-        Ok(self.0.lock().unwrap().io_button_is_pressed().unwrap())
+        match self.0.lock().unwrap().io_button_is_pressed() {
+            Ok(v) => Ok(v),
+            Err(e) => Err(PyValueError::new_err(e.to_string())),
+        }
     }
 
     fn audio_start(&self, sample_rate: u32) -> PyResult<()> {
-        Ok(self.0.lock().unwrap().audio_start(sample_rate).unwrap())
+        self.0.lock().unwrap().audio_start(sample_rate).unwrap();
+        Ok(())
     }
 
     fn audio_stop(&self) -> PyResult<()> {
-        Ok(self.0.lock().unwrap().audio_stop().unwrap())
+        self.0.lock().unwrap().audio_stop().unwrap();
+        Ok(())
     }
 
     fn audio_save(&self, fname: String) -> PyResult<()> {
-        Ok(self.0.lock().unwrap().audio_save(fname).unwrap())
+        self.0.lock().unwrap().audio_save(fname).unwrap();
+        Ok(())
     }
 
     fn gps_open(&self) -> PyResult<bool> {
-        Ok(self.0.lock().unwrap().gps_open().unwrap())
+        match self.0.lock().unwrap().gps_open() {
+            Ok(v) => Ok(v),
+            Err(e) => Err(PyValueError::new_err(e.to_string())),
+        }
     }
 
     fn gps_close(&self) -> PyResult<()> {
-        Ok(self.0.lock().unwrap().gps_close().unwrap())
+        match &self.0.lock().unwrap().gps_close() {
+            Ok(()) => Ok(()),
+            Err(e) => Err(PyRuntimeError::new_err(e.to_string())),
+        }
     }
 
     fn gps_is_open(&self) -> PyResult<bool> {
-        Ok(self.0.lock().unwrap().gps_is_open().unwrap())
+        match self.0.lock().unwrap().gps_is_open() {
+            Ok(v) => Ok(v),
+            Err(e) => Err(PyValueError::new_err(e.to_string())),
+        }
     }
 
     fn gps_has_lock(&self) -> PyResult<bool> {
@@ -147,15 +174,16 @@ impl PyNeoVIMIC {
     }
 
     fn gps_info(&self) -> PyResult<PyGPSInfo> {
-        Ok(PyGPSInfo::from(&self.0.lock().unwrap().gps_info().unwrap()))
+        match &self.0.lock().unwrap().gps_info() {
+            Ok(gps_info) => Ok(PyGPSInfo::from(gps_info)),
+            Err(e) => Err(PyValueError::new_err(e.to_string())),
+        }
     }
 }
 
 impl PyNeoVIMIC {
     pub fn from(neovi_mic: NeoVIMIC) -> Self {
-        Self {
-            0: Arc::new(Mutex::new(neovi_mic)),
-        }
+        Self(Arc::new(Mutex::new(neovi_mic)))
     }
 }
 
