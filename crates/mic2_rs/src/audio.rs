@@ -3,6 +3,12 @@ use core::time;
 use std::cell::RefCell;
 
 use regex::Regex;
+
+#[cfg(feature = "audio")]
+extern crate sfml_20 as sfml;
+#[cfg(feature = "audio-latest")]
+extern crate sfml_21 as sfml;
+
 use sfml::{self, audio::SoundBufferRecorder};
 
 #[derive(Debug)]
