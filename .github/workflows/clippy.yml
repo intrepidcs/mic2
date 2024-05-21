@@ -9,6 +9,13 @@ jobs:
   clippy_check:
     runs-on: ubuntu-latest
     steps:
+      - name: Install Dependencies
+        run: sudo apt-get install libsfml-dev libudev-dev libftdi1-dev
+
       - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0 # needed for history/tags
+
       - name: Run Clippy
         run: cargo clippy --all-targets --all-features
