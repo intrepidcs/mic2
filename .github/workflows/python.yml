@@ -48,7 +48,8 @@ jobs:
           target: ${{ matrix.platform.target }}
           args: --release --out dist --find-interpreter --manifest-path crates/pymic2/Cargo.toml
           sccache: 'true'
-          manylinux: auto
+          manylinux: 2_28
+          before-script-linux: sudo dnf install -y SFML-devel systemd-devel libftdi1-devel
       - name: Upload wheels
         uses: actions/upload-artifact@v4
         with:
@@ -121,7 +122,7 @@ jobs:
         uses: PyO3/maturin-action@v1
         with:
           command: sdist
-          args: --out dist
+          args: --out dist --manifest-path crates/pymic2/Cargo.toml
       - name: Upload sdist
         uses: actions/upload-artifact@v4
         with:
