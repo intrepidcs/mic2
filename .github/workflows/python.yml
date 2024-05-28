@@ -53,7 +53,7 @@ jobs:
             curl -O https://www.intra2net.com/en/developer/libftdi/download/libftdi1-1.5.tar.bz2
             tar -xf libftdi1-1.5.tar.bz2
             cd libftdi1-1.5
-            cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+            cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DFTDI_EEPROM=OFF -Wno-dev
             cmake --build build --target install --config Release
       - name: Upload wheels
         uses: actions/upload-artifact@v4
