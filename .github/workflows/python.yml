@@ -48,6 +48,7 @@ jobs:
           sccache: 'false'
           manylinux: 2_28
           before-script-linux: |
+            cat /etc/os-release
             dnf install -y almalinux-release-devel
             dnf install -y systemd-devel SFML-devel libusb-devel
             curl -O https://www.intra2net.com/en/developer/libftdi/download/libftdi1-1.5.tar.bz2
