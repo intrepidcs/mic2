@@ -19,6 +19,38 @@ permissions:
   contents: read
 
 jobs:
+  linux-arm:
+    runs-on: ${{ matrix.platform.runner }}
+    strategy:
+      matrix:
+        platform:
+          - runner: ubuntu-latest
+            target: aarch64
+          - runner: ubuntu-latest
+            target: armv7
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0 # needed for history/tags
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      - name: Build wheels
+        uses: PyO3/maturin-action@v1
+        with:
+          target: ${{ matrix.platform.target }}
+          args: --release --out dist --find-interpreter --manifest-path crates/pymic2/Cargo.toml
+          sccache: 'false'
+          manylinux: 2_28
+          before-script-linux: |
+            cat /etc/os-release
+            sudo apt-get install -y libftdi1-dev libudev-dev sfml-dev
+      - name: Upload wheels
+        uses: actions/upload-artifact@v4
+        with:
+          name: wheels-linux-${{ matrix.platform.target }}
+          path: dist
   linux:
     runs-on: ${{ matrix.platform.runner }}
     strategy:
@@ -28,10 +60,6 @@ jobs:
             target: x86_64
           #- runner: ubuntu-latest
           #  target: x86
-          - runner: ubuntu-latest
-            target: aarch64
-          - runner: ubuntu-latest
-            target: armv7
     steps:
       - uses: actions/checkout@v4
         with:
