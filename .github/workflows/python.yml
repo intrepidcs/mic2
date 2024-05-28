@@ -47,7 +47,14 @@ jobs:
           args: --release --out dist --find-interpreter --manifest-path crates/pymic2/Cargo.toml
           sccache: 'true'
           manylinux: 2_28
-          before-script-linux: dnf install -y SFML-devel systemd-devel libftdi1-devel
+          before-script-linux: |
+            dnf install almalinux-release-devel
+            dnf install -y systemd-devel SFML-devel
+            curl -O https://www.intra2net.com/en/developer/libftdi/download/libftdi1-1.5.tar.bz2
+            tar -xf libftdi1-1.5.tar.bz2
+            cd libftdi1-1.5
+            cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+            cmake --build build --target install --config Release
       - name: Upload wheels
         uses: actions/upload-artifact@v4
         with:
