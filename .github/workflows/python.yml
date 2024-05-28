@@ -54,18 +54,15 @@ jobs:
               "aarch64" | "armv7" | "s390x" | "ppc64le")
                 # NOTE: pypa/manylinux docker images are Debian based
                 sudo apt-get install -y libsfml-dev libudev-dev libftdi1-dev
+                . ./util/sfml.sh
                 ;;
               "x86_64" | "x86")
                 # NOTE: pypa/manylinux docker images are Debian based
                 dnf install -y almalinux-release-devel
                 dnf install -y systemd-devel SFML-devel libusb-devel
                 # libftdi is not available in the almalinux-release package
-                curl -O https://www.intra2net.com/en/developer/libftdi/download/libftdi1-1.5.tar.bz2
-                tar -xf libftdi1-1.5.tar.bz2
-                cd libftdi1-1.5
-                cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DFTDI_EEPROM=OFF -Wno-dev
-                cmake --build build --target install --config Release
-                cd ..
+                . ./util/ftdi.sh
+                . ./util/sfml.sh
                 ;;
             esac
       - name: Upload wheels
