@@ -45,7 +45,7 @@ jobs:
         with:
           target: ${{ matrix.platform.target }}
           args: --release --out dist --find-interpreter --manifest-path crates/pymic2/Cargo.toml
-          sccache: 'true'
+          sccache: 'false'
           manylinux: 2_28
           before-script-linux: |
             dnf install -y almalinux-release-devel
