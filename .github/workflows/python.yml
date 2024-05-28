@@ -45,51 +45,51 @@ jobs:
           manylinux: 2_28
           before-script-linux: |
             cat /etc/os-release
-            sudo apt-get install -y libftdi1-dev libudev-dev sfml-dev
+            sudo apt-get install -y libsfml-dev libudev-dev libftdi1-dev
       - name: Upload wheels
         uses: actions/upload-artifact@v4
         with:
           name: wheels-linux-${{ matrix.platform.target }}
           path: dist
-  linux:
-    runs-on: ${{ matrix.platform.runner }}
-    strategy:
-      matrix:
-        platform:
-          - runner: ubuntu-latest
-            target: x86_64
-          #- runner: ubuntu-latest
-          #  target: x86
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          submodules: recursive
-          fetch-depth: 0 # needed for history/tags
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.10'
-      - name: Build wheels
-        uses: PyO3/maturin-action@v1
-        with:
-          target: ${{ matrix.platform.target }}
-          args: --release --out dist --find-interpreter --manifest-path crates/pymic2/Cargo.toml
-          sccache: 'false'
-          manylinux: 2_28
-          before-script-linux: |
-            cat /etc/os-release
-            dnf install -y almalinux-release-devel
-            dnf install -y systemd-devel SFML-devel libusb-devel
-            curl -O https://www.intra2net.com/en/developer/libftdi/download/libftdi1-1.5.tar.bz2
-            tar -xf libftdi1-1.5.tar.bz2
-            cd libftdi1-1.5
-            cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DFTDI_EEPROM=OFF -Wno-dev
-            cmake --build build --target install --config Release
-            cd ..
-      - name: Upload wheels
-        uses: actions/upload-artifact@v4
-        with:
-          name: wheels-linux-${{ matrix.platform.target }}
-          path: dist
+  # linux:
+  #   runs-on: ${{ matrix.platform.runner }}
+  #   strategy:
+  #     matrix:
+  #       platform:
+  #         - runner: ubuntu-latest
+  #           target: x86_64
+  #         #- runner: ubuntu-latest
+  #         #  target: x86
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #       with:
+  #         submodules: recursive
+  #         fetch-depth: 0 # needed for history/tags
+  #     - uses: actions/setup-python@v5
+  #       with:
+  #         python-version: '3.10'
+  #     - name: Build wheels
+  #       uses: PyO3/maturin-action@v1
+  #       with:
+  #         target: ${{ matrix.platform.target }}
+  #         args: --release --out dist --find-interpreter --manifest-path crates/pymic2/Cargo.toml
+  #         sccache: 'false'
+  #         manylinux: 2_28
+  #         before-script-linux: |
+  #           cat /etc/os-release
+  #           dnf install -y almalinux-release-devel
+  #           dnf install -y systemd-devel SFML-devel libusb-devel
+  #           curl -O https://www.intra2net.com/en/developer/libftdi/download/libftdi1-1.5.tar.bz2
+  #           tar -xf libftdi1-1.5.tar.bz2
+  #           cd libftdi1-1.5
+  #           cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DFTDI_EEPROM=OFF -Wno-dev
+  #           cmake --build build --target install --config Release
+  #           cd ..
+  #     - name: Upload wheels
+  #       uses: actions/upload-artifact@v4
+  #       with:
+  #         name: wheels-linux-${{ matrix.platform.target }}
+  #         path: dist
 
   # windows:
   #   runs-on: ${{ matrix.platform.runner }}
