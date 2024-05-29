@@ -53,15 +53,21 @@ jobs:
             case "${{ matrix.platform.target }}" in
               "aarch64" | "armv7" | "s390x" | "ppc64le")
                 # NOTE: pypa/manylinux docker images are Debian based
+                sudo apt-get update -y
                 sudo apt-get install -y libsfml-dev libudev-dev libftdi1-dev
+                ls
+                pwd
                 . ./util/sfml.sh
                 ;;
               "x86_64" | "x86")
                 # NOTE: pypa/manylinux docker images are Debian based
                 dnf install -y almalinux-release-devel
-                dnf install -y systemd-devel SFML-devel libusb-devel
+                dnf install -y systemd-devel libusb-devel
+                ls
+                pwd
                 # libftdi is not available in the almalinux-release package
                 . ./util/ftdi.sh
+                # libsfml is dirt old on almalinux...
                 . ./util/sfml.sh
                 ;;
             esac
