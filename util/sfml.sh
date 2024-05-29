@@ -13,7 +13,7 @@ tar -xf ${SFML_VERSION}.tar.gz
 echo "Building SFML ${SFML_VERSION}..."
 cd SFML-${SFML_VERSION}
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -Wno-dev
-cmake --build build
+cmake --build build --target install --config Release
 
 echo "Setting up rust-sfml environment variables..."
 export SFML_INCLUDE_DIR="$(pwd)/include"
