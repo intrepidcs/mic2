@@ -55,7 +55,7 @@ jobs:
                 # NOTE: pypa/manylinux docker images are Debian based
                 sudo apt-get update -y
                 sudo apt-get install -y libsfml-dev libudev-dev libftdi1-dev
-                ls
+                ls *
                 pwd
                 . ./util/sfml.sh
                 ;;
@@ -63,7 +63,7 @@ jobs:
                 # NOTE: pypa/manylinux docker images are Debian based
                 dnf install -y almalinux-release-devel
                 dnf install -y systemd-devel libusb-devel
-                ls
+                ls *
                 pwd
                 # libftdi is not available in the almalinux-release package
                 . ./util/ftdi.sh
