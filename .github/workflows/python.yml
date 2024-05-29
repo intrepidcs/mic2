@@ -66,7 +66,7 @@ jobs:
                 ls *
                 pwd
                 # libftdi is not available in the almalinux-release package
-                . ./util/ftdi.sh
+                . ./util/ftdi1.sh
                 # libsfml is dirt old on almalinux...
                 . ./util/sfml.sh
                 ;;
