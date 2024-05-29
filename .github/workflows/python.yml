@@ -54,17 +54,14 @@ jobs:
               "aarch64" | "armv7" | "s390x" | "ppc64le")
                 # NOTE: pypa/manylinux docker images are Debian based
                 sudo apt-get update -y
-                sudo apt-get install -y libsfml-dev libudev-dev libftdi1-dev
-                ls *
-                pwd
+                sudo apt-get install -y libsfml-dev libudev-dev libftdi1-dev libfreetype-dev libx11-dev libxrandr-dev libopengl-dev libflac-dev libogg-dev libvorbis-dev libopenal-dev
                 . ./util/sfml.sh
                 ;;
               "x86_64" | "x86")
                 # NOTE: pypa/manylinux docker images are Debian based
                 dnf install -y almalinux-release-devel
-                dnf install -y systemd-devel libusb-devel
-                ls *
-                pwd
+                dnf install -y systemd-devel libusb-devel freetype-devel libX11-devel libXrandr-devel libglvnd-devel flac-devel libogg-devel libvorbis-devel openal-soft-devel
+
                 # libftdi is not available in the almalinux-release package
                 . ./util/ftdi1.sh
                 # libsfml is dirt old on almalinux...
