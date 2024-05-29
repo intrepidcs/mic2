@@ -53,12 +53,15 @@ jobs:
             case "${{ matrix.platform.target }}" in
               "aarch64" | "armv7" | "s390x" | "ppc64le")
                 # NOTE: pypa/manylinux docker images are Debian based
-                uname -a
+                uname -m
                 sudo apt-get update -y
-                sudo apt-get install -y libsfml-dev libudev-dev libftdi1-dev libfreetype-dev libx11-dev libxrandr-dev libopengl-dev libflac-dev libogg-dev libvorbis-dev libopenal-dev
+                sudo dpkg --add-architecture arm64
+                sudo dpkg --print-foreign-architectures
+                sudo apt-get install -y libsfml-dev:arm64 libudev-dev:arm64 libftdi1-dev:arm64 libfreetype-dev:arm64 libx11-dev:arm64 libxrandr-dev:arm64 libopengl-dev:arm64 libflac-dev:arm64 libogg-dev:arm64 libvorbis-dev:arm64 libopenal-dev:arm64
                 . ./util/sfml.sh
                 ;;
               "x86_64" | "x86")
+                uname -m
                 # NOTE: pypa/manylinux docker images are Debian based
                 dnf install -y almalinux-release-devel
                 dnf install -y systemd-devel libusb-devel freetype-devel libX11-devel libXrandr-devel libglvnd-devel flac-devel libogg-devel libvorbis-devel openal-soft-devel
