@@ -16,8 +16,8 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -Wno-dev
 cmake --build build
 
 echo "Setting up rust-sfml environment variables..."
-export SFML_LIB_DIR="$(pwd)/include"
-export SFML_INCLUDE_DIR="$(pwd)/build/lib"
+export SFML_INCLUDE_DIR="$(pwd)/include"
+export SFML_LIB_DIR="$(pwd)/build/lib"
 
 cd $PARENT_DIR
 
