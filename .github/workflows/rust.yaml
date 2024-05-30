@@ -39,6 +39,9 @@ jobs:
             - target: aarch64-unknown-linux-gnu
               os: ubuntu-latest
               cargo: cross
+            - target: armv7-unknown-linux-musleabihf
+              os: ubuntu-latest
+              cargo: cross
             - target: x86_64-unknown-windows-msvc
               os: windows-latest
               cargo: cargo
@@ -59,11 +62,24 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
       - run: sudo apt-get install musl-tools
         if: matrix.cargo == 'cargo' && contains(matrix.target, 'musl')
-      - run: |
+      - name: Test Rust and C packages
+        run: |
           ${{ matrix.cargo }} test \
             --features _skip-hil-testing \
-            --target ${{ matrix.target }}
+            --target ${{ matrix.target }} \
+            --package mic2
+          ${{ matrix.cargo }} test \
+            --target ${{ matrix.target }} \
+            --package libmic2
+        shell: bash
         if: '!matrix.notest'
+      - name: Test python package (native only)
+        if: matrix.cargo == 'cargo'
+        run: |
+          ${{ matrix.cargo }} test
+            --features _skip-hil-testing
+            --target ${{ matrix.target }}
+            --package mic2_python
 
   fmt:
     name: formatting
