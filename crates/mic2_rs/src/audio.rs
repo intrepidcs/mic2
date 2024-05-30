@@ -117,7 +117,8 @@ pub fn record_default_capture() {
 }
 
 #[cfg(test)]
-mod test {
+#[cfg(not(feature = "_skip-hil-testing"))]
+mod test_hil {
     use super::*;
 
     #[test]
@@ -137,6 +138,7 @@ mod test {
         }
         Ok(())
     }
+
     #[test]
     fn test_record_default_capture() {
         record_default_capture();

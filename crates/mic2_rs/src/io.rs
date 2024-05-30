@@ -202,7 +202,8 @@ impl IO {
 }
 
 #[cfg(test)]
-mod tests {
+#[cfg(not(feature = "_skip-hil-testing"))]
+mod tests_hil {
     use std::sync::Mutex;
 
     use crate::mic::find_neovi_mics;

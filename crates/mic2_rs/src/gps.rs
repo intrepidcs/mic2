@@ -343,7 +343,8 @@ impl GPSDevice {
 }
 
 #[cfg(test)]
-mod tests {
+#[cfg(not(feature = "_skip-hil-testing"))]
+mod tests_hil {
     use std::time::Duration;
 
     use super::*;
