@@ -81,13 +81,16 @@ impl Audio {
 
     pub fn save_to_file(&self, fname: impl Into<String>) -> Result<()> {
         let fname: String = fname.into();
-        if !self.recorder.borrow_mut().buffer().save_to_file(fname.as_str()) {
-            return Err(Error::CriticalError(
-                format!(
-                    "Failed to save capture from {} to file {}",
-                    self.capture_name, fname
-                ),
-            ));
+        if !self
+            .recorder
+            .borrow_mut()
+            .buffer()
+            .save_to_file(fname.as_str())
+        {
+            return Err(Error::CriticalError(format!(
+                "Failed to save capture from {} to file {}",
+                self.capture_name, fname
+            )));
         }
         Ok(())
     }
@@ -122,7 +125,7 @@ mod test {
         let mut devices = Audio::find_neovi_mic2_audio()?;
         println!("{devices:#?}");
         assert!(
-            devices.len() > 0,
+            !devices.is_empty(),
             "Expected at least 1 neoVI MIC2 audio device!"
         );
         for (i, device) in devices.iter_mut().enumerate() {

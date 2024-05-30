@@ -225,7 +225,7 @@ impl From<GPSInfo> for CGPSInfo {
 
         let mut info = CGPSInfo {
             current_time: match gps_info.current_time {
-                Some(current_time) => current_time.timestamp(),
+                Some(current_time) => current_time.and_utc().timestamp(),
                 None => 0,
             },
             latitude: CGPSDMS::from(lat_dms),

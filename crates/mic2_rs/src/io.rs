@@ -28,7 +28,7 @@ pub enum IOBitMode {
 }
 
 impl IOBitMode {
-    pub fn from_bits(value: u8) -> Result<BitFlags::<Self>> {
+    pub fn from_bits(value: u8) -> Result<BitFlags<Self>> {
         // TODO: This should handle unwrap better
         Ok(BitFlags::<Self>::from_bits(value).unwrap())
     }
@@ -193,9 +193,7 @@ impl IO {
     }
 
     pub fn read_pins(&self) -> Result<BitFlags<IOBitMode>> {
-        Ok(
-            BitFlags::<IOBitMode>::from_bits(self.read_pins_raw()?).unwrap()
-        )
+        Ok(BitFlags::<IOBitMode>::from_bits(self.read_pins_raw()?).unwrap())
     }
 
     pub fn get_usb_device_info(&self) -> &UsbDeviceInfo {
@@ -220,34 +218,46 @@ mod tests {
         let _lock = LOCK.lock().unwrap();
 
         let mut devices = find_neovi_mics()?;
-        if devices.len() == 0 {
+        if devices.is_empty() {
             panic!("Need at least one neoVI MIC connected, found 0 devices...");
         }
         for device in &mut devices {
             // Open and check
             device.io_open()?;
-            assert_eq!(device.io_is_open()?, true);
+            assert!(device.io_is_open()?);
 
             // Test the buzzer
             device.io_buzzer_enable(true)?;
             std::thread::sleep(std::time::Duration::from_secs_f64(0.1f64));
-            assert_eq!(device.io_buzzer_is_enabled()?, true, "Expected Buzzer to be enabled!");
+            assert!(
+                device.io_buzzer_is_enabled()?,
+                "Expected Buzzer to be enabled!"
+            );
             device.io_buzzer_enable(false)?;
-            assert_eq!(device.io_buzzer_is_enabled()?, false, "Expected Buzzer to be disabled!");
+            assert!(
+                !device.io_buzzer_is_enabled()?,
+                "Expected Buzzer to be disabled!"
+            );
 
             // Test the GPS LED
             device.io_gpsled_enable(true)?;
             std::thread::sleep(std::time::Duration::from_secs_f64(0.1f64));
-            assert_eq!(device.io_gpsled_is_enabled()?, true, "Expected GPS LED to be enabled!");
+            assert!(
+                device.io_gpsled_is_enabled()?,
+                "Expected GPS LED to be enabled!"
+            );
             device.io_gpsled_enable(false)?;
-            assert_eq!(device.io_gpsled_is_enabled()?, false, "Expected GPS LED to be disabled!");
+            assert!(
+                !device.io_gpsled_is_enabled()?,
+                "Expected GPS LED to be disabled!"
+            );
 
             // Test button
-            assert_eq!(device.io_button_is_pressed()?, false);
+            assert!(!device.io_button_is_pressed()?);
 
             // Close and check
             device.io_close()?;
-            assert_eq!(device.io_is_open()?, false);
+            assert!(!device.io_is_open()?);
         }
         Ok(())
     }

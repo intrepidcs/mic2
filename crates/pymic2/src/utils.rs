@@ -20,8 +20,8 @@
 macro_rules! create_python_object {
     ($name:ident, $python_name:literal, $inner_name:ty) => {
         #[pyclass(name=$python_name)]
-        #[derive(Debug, Default, Clone)]
         #[repr(transparent)]
+        #[derive(Debug, Default, Clone)]
         pub struct $name(pub Arc<Mutex<$inner_name>>);
 
         // Arc is only Send if T is Send so lets mark it as safe here

@@ -6,6 +6,7 @@ use pyo3::prelude::*;
 use crate::utils::create_python_object;
 
 create_python_object!(PyUsbDeviceInfo, "UsbDeviceInfo", UsbDeviceInfo);
+
 #[pymethods]
 impl PyUsbDeviceInfo {
     #[new]
@@ -71,8 +72,6 @@ impl PyUsbDeviceInfo {
 
 impl PyUsbDeviceInfo {
     pub fn from(usb_device_info: &UsbDeviceInfo) -> Self {
-        Self {
-            0: Arc::new(Mutex::new(usb_device_info.to_owned())),
-        }
+        Self(Arc::new(Mutex::new(usb_device_info.to_owned())))
     }
 }

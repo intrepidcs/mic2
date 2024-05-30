@@ -183,6 +183,7 @@ impl PyNeoVIMIC {
 
 impl PyNeoVIMIC {
     pub fn from(neovi_mic: NeoVIMIC) -> Self {
+        #[allow(clippy::arc_with_non_send_sync)] // FIXME(drebbe): the Arc does nothing
         Self(Arc::new(Mutex::new(neovi_mic)))
     }
 }

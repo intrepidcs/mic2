@@ -263,7 +263,7 @@ impl GPSDevice {
                                     println!("Unsupported NMEA: {data:?} {e:?}")
                                 }
                                 GPSPacket::NMEAPartialStart(s) => {
-                                    partial_sentence = s.to_owned();
+                                    s.clone_into(&mut partial_sentence);
                                     partial_complete = false;
                                 }
                                 GPSPacket::NMEAPartial(s) => partial_sentence.push_str(s),
@@ -345,8 +345,6 @@ impl GPSDevice {
 #[cfg(test)]
 mod tests {
     use std::time::Duration;
-
-    use nmea_parser::NmeaParser;
 
     use super::*;
 
