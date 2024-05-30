@@ -42,12 +42,13 @@ jobs:
             - target: armv7-unknown-linux-musleabihf
               os: ubuntu-latest
               cargo: cross
-            - target: x86_64-pc-windows-msvc
-              os: windows-latest
-              cargo: cargo
-            - target: x86_64-pc-windows-gnu
-              os: windows-latest
-              cargo: cargo
+            # FIXME: figure out install location
+            # - target: x86_64-pc-windows-msvc
+            #   os: windows-latest
+            #   cargo: cargo
+            # - target: x86_64-pc-windows-gnu
+            #   os: windows-latest
+            #   cargo: cargo
             - target: x86_64-apple-darwin
               os: macos-latest
               cargo: cargo

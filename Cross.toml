@@ -1,6 +1,7 @@
 [target.aarch64-unknown-linux-gnu]
 pre-build = [
     # "echo YES I AM WORKIND",
+    "pwd","ls",
     "../ci/setup-debian.sh",
     # "exit 1"
 ]
