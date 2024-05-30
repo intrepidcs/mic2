@@ -9,11 +9,10 @@ if [ -n "${CROSS_DEB_ARCH:-}" ]; then
     # Cross gives the wrong debian architecutre
     arch="armhf"
 
-    if [ -n "$GITHUB_ENV" ]; then
-      # SFML can't find these for some reason
-      echo "SFML_INCLUDE_DIR=/usr/include/SFML" >> "$GITHUB_ENV"
-      echo "SFML_LIBS_DIR=/usr/lib/arm-linux-gnueabihf" >> "$GITHUB_ENV"
-    fi
+    # SFML can't find these for some reason. Set them globally
+    # (this is a docker container!)
+    echo "export SFML_INCLUDE_DIR=/usr/include" >> "/etc/profile.d/cfg-sfml.sh"
+    echo "export SFML_LIBS_DIR=/usr/lib/arm-linux-gnueabihf" >> "/etc/profile.d/cfg-sfml.sh"
   else
     arch="$CROSS_DEB_ARCH"
   fi
