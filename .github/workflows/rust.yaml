@@ -61,8 +61,12 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
-      - uses: taiki-e/install-action@cross
-        if: matrix.cargo == 'cross'
+      - if: matrix.cargo == 'cross'
+        # FIXME: just use this action once there is a release with
+        # <https://github.com/cross-rs/cross/pull/1159>
+        # uses: taiki-e/install-action@cross
+        run: cargo install --git https://github.com/cross-rs/cross.git --rev 19be83481fd3e50ea103d800d72e0f8eddb1c90c
+        
       - uses: Swatinem/rust-cache@v2
         with:
           key: ${{ matrix.os }}
@@ -77,7 +81,7 @@ jobs:
           echo "SFML_INCLUDE_DIR=$(brew --prefix)/opt/sfml/include" >> "$GITHUB_ENV"
           echo "SFML_LIBS_DIR=$(brew --prefix)/lib" >> "$GITHUB_ENV"
       - if: contains(matrix.os, 'windows') && matrix.cargo == 'cargo'
-        run: choco install sfml
+        run: vcpkg install sfml
         
 
       - name: Test Rust and C packages
