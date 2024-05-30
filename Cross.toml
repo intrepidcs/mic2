@@ -2,7 +2,7 @@
 pre-build = [
     "echo YES I AM WORKIND",
     "./ci/setup-debian.sh",
-    "exit 1"
+    "exit 12345"
 ]
 
 [target.armv7-unknown-linux-musleabihf]

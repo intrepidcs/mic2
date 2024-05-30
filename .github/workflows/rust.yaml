@@ -89,7 +89,7 @@ jobs:
         
 
       - name: Test Rust and C packages
-        run: |
+        run: >
           ${{ matrix.cargo }} test \
             --features _skip-hil-testing \
             --target ${{ matrix.target }} \
