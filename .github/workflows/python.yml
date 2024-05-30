@@ -19,101 +19,20 @@ permissions:
   contents: read
 
 jobs:
-  linux:
-    runs-on: ${{ matrix.platform.runner }}
-    strategy:
-      matrix:
-        platform:
-          - runner: ubuntu-latest
-            target: aarch64
-          - runner: ubuntu-latest
-            target: armv7
-          - runner: ubuntu-latest
-            target: x86_64
-          # - runner: ubuntu-latest
-          #   target: x86
-      fail-fast: false
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          submodules: recursive
-          fetch-depth: 0 # needed for history/tags
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.10'
-      - name: Build wheels
-        uses: PyO3/maturin-action@v1
-        with:
-          target: ${{ matrix.platform.target }}
-          args: --release --out dist --find-interpreter --manifest-path crates/pymic2/Cargo.toml
-          sccache: 'false'
-          manylinux: 2_28
-          before-script-linux: |
-            cat /etc/os-release
-            case "${{ matrix.platform.target }}" in
-              "aarch64" | "armv7" | "s390x" | "ppc64le")
-                # NOTE: pypa/manylinux docker images are Debian based
-                uname -m
-                sudo apt-get update -y
-                sudo dpkg --add-architecture arm64
-                sudo dpkg --print-foreign-architectures
-                sudo apt-get update -y
-                sudo apt-get install -y libsfml-dev:arm64 libudev-dev:arm64 libftdi1-dev:arm64 libfreetype-dev:arm64 libx11-dev:arm64 libxrandr-dev:arm64 libopengl-dev:arm64 libflac-dev:arm64 libogg-dev:arm64 libvorbis-dev:arm64 libopenal-dev:arm64
-                . ./util/sfml.sh
-                ;;
-              "x86_64" | "x86")
-                uname -m
-                # NOTE: pypa/manylinux docker images are Debian based
-                dnf install -y almalinux-release-devel
-                dnf install -y systemd-devel libusb-devel freetype-devel libX11-devel libXrandr-devel libglvnd-devel flac-devel libogg-devel libvorbis-devel openal-soft-devel
-
-                # libftdi is not available in the almalinux-release package
-                . ./util/ftdi1.sh
-                # libsfml is dirt old on almalinux...
-                . ./util/sfml.sh
-                ;;
-            esac
-      - name: Upload wheels
-        uses: actions/upload-artifact@v4
-        with:
-          name: wheels-linux-${{ matrix.platform.target }}
-          path: dist
-  # windows:
+  # linux:
   #   runs-on: ${{ matrix.platform.runner }}
   #   strategy:
   #     matrix:
   #       platform:
-  #         - runner: windows-latest
-  #           target: x64
-  #         - runner: windows-latest
-  #           target: x86
-  #   steps:
-  #     - uses: actions/checkout@v4
-  #     - uses: actions/setup-python@v5
-  #       with:
-  #         python-version: '3.10'
-  #         architecture: ${{ matrix.platform.target }}
-  #     - name: Build wheels
-  #       uses: PyO3/maturin-action@v1
-  #       with:
-  #         target: ${{ matrix.platform.target }}
-  #         args: --release --out dist --find-interpreter --manifest-path crates/pymic2/Cargo.toml
-  #         sccache: 'true'
-  #     - name: Upload wheels
-  #       uses: actions/upload-artifact@v4
-  #       with:
-  #         name: wheels-windows-${{ matrix.platform.target }}
-  #         path: dist
-
-  # macos:
-  #   runs-on: ${{ matrix.platform.runner }}
-  #   strategy:
-  #     matrix:
-  #       platform:
-  #         - runner: macos-latest
-  #           target: x86_64
-  #         - runner: macos-14
+  #         - runner: ubuntu-latest
   #           target: aarch64
+  #         - runner: ubuntu-latest
+  #           target: armv7
+  #         - runner: ubuntu-latest
+  #           target: x86_64
+  #         # - runner: ubuntu-latest
+  #         #   target: x86
+  #     fail-fast: false
   #   steps:
   #     - uses: actions/checkout@v4
   #       with:
@@ -121,20 +40,101 @@ jobs:
   #         fetch-depth: 0 # needed for history/tags
   #     - uses: actions/setup-python@v5
   #       with:
-  #         python-version: '3.10'
-  #     - name: Install system dependencies
-  #         run: brew install sfml@2.5.1 cmake
+  #         python-version: '3.9'
   #     - name: Build wheels
   #       uses: PyO3/maturin-action@v1
   #       with:
   #         target: ${{ matrix.platform.target }}
   #         args: --release --out dist --find-interpreter --manifest-path crates/pymic2/Cargo.toml
-  #         sccache: 'true'
+  #         sccache: 'false'
+  #         manylinux: 2_28
+  #         before-script-linux: |
+  #           cat /etc/os-release
+  #           case "${{ matrix.platform.target }}" in
+  #             "aarch64" | "armv7" | "s390x" | "ppc64le")
+  #               # NOTE: pypa/manylinux docker images are Debian based
+  #               uname -m
+  #               sudo apt-get update -y
+  #               sudo dpkg --add-architecture arm64
+  #               sudo dpkg --print-foreign-architectures
+  #               sudo apt-get update -y
+  #               sudo apt-get install -y libsfml-dev:arm64 libudev-dev:arm64 libftdi1-dev:arm64 libfreetype-dev:arm64 libx11-dev:arm64 libxrandr-dev:arm64 libopengl-dev:arm64 libflac-dev:arm64 libogg-dev:arm64 libvorbis-dev:arm64 libopenal-dev:arm64
+  #               . ./util/sfml.sh
+  #               ;;
+  #             "x86_64" | "x86")
+  #               uname -m
+  #               # NOTE: pypa/manylinux docker images are Debian based
+  #               dnf install -y almalinux-release-devel
+  #               dnf install -y systemd-devel libusb-devel freetype-devel libX11-devel libXrandr-devel libglvnd-devel flac-devel libogg-devel libvorbis-devel openal-soft-devel
+
+  #               # libftdi is not available in the almalinux-release package
+  #               . ./util/ftdi1.sh
+  #               # libsfml is dirt old on almalinux...
+  #               . ./util/sfml.sh
+  #               ;;
+  #           esac
   #     - name: Upload wheels
   #       uses: actions/upload-artifact@v4
   #       with:
-  #         name: wheels-macos-${{ matrix.platform.target }}
+  #         name: wheels-linux-${{ matrix.platform.target }}
   #         path: dist
+  # # windows:
+  # #   runs-on: ${{ matrix.platform.runner }}
+  # #   strategy:
+  # #     matrix:
+  # #       platform:
+  # #         - runner: windows-latest
+  # #           target: x64
+  # #         - runner: windows-latest
+  # #           target: x86
+  # #   steps:
+  # #     - uses: actions/checkout@v4
+  # #     - uses: actions/setup-python@v5
+  # #       with:
+  # #         python-version: '3.10'
+  # #         architecture: ${{ matrix.platform.target }}
+  # #     - name: Build wheels
+  # #       uses: PyO3/maturin-action@v1
+  # #       with:
+  # #         target: ${{ matrix.platform.target }}
+  # #         args: --release --out dist --find-interpreter --manifest-path crates/pymic2/Cargo.toml
+  # #         sccache: 'true'
+  # #     - name: Upload wheels
+  # #       uses: actions/upload-artifact@v4
+  # #       with:
+  # #         name: wheels-windows-${{ matrix.platform.target }}
+  # #         path: dist
+
+  # # macos:
+  # #   runs-on: ${{ matrix.platform.runner }}
+  # #   strategy:
+  # #     matrix:
+  # #       platform:
+  # #         - runner: macos-latest
+  # #           target: x86_64
+  # #         - runner: macos-14
+  # #           target: aarch64
+  # #   steps:
+  # #     - uses: actions/checkout@v4
+  # #       with:
+  # #         submodules: recursive
+  # #         fetch-depth: 0 # needed for history/tags
+  # #     - uses: actions/setup-python@v5
+  # #       with:
+  # #         python-version: '3.10'
+  # #     - name: Install system dependencies
+  # #         run: brew install sfml@2.5.1 cmake
+  # #     - name: Build wheels
+  # #       uses: PyO3/maturin-action@v1
+  # #       with:
+  # #         target: ${{ matrix.platform.target }}
+  # #         args: --release --out dist --find-interpreter --manifest-path crates/pymic2/Cargo.toml
+  # #         sccache: 'true'
+  # #     - name: Upload wheels
+  # #       uses: actions/upload-artifact@v4
+  # #       with:
+  # #         name: wheels-macos-${{ matrix.platform.target }}
+  # #         path: dist
 
   sdist:
     runs-on: ubuntu-latest
