@@ -18,6 +18,9 @@ gps = ["dep:nmea-parser", "dep:serialport"]
 io = ["dep:libftdi1-sys"]
 audio = ["dep:sfml"]
 
+# Disable hardware-in-loop tests
+_skip-hil-testing = []
+
 [dependencies]
 #libftd2xx = { version = "0.32.2", features=[], optional = true }
 cfg-if = "1.0.0"
