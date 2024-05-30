@@ -1,4 +1,5 @@
 #!/bin/sh
+# Configure dependencies to build on Debian
 
 set -eaux
 

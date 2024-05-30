@@ -13,9 +13,10 @@ exclude = [
 pre-build = [
     "echo YES I AM WORKIND",
     "./ci/setup-debian.sh",
+    "exit 1"
 ]
 
-[workspace.metadata.cross.target.armv7-unknown-linux-gnu]
+[workspace.metadata.cross.target.armv7-unknown-linux-musleabihf]
 pre-build = [
     "echo YES I AM WORKIND",
     "./ci/setup-debian.sh",

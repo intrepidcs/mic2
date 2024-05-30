@@ -48,6 +48,12 @@ jobs:
             - target: x86_64-pc-windows-gnu
               os: windows-latest
               cargo: cargo
+            - target: x86_64-apple-darwin
+              os: macos-latest
+              cargo: cargo
+            - target: aarch64-apple-darwin
+              os: macos-14
+              cargo: cargo
     name: "test ${{ matrix.target }}"
     runs-on: ${{ matrix.os }}
     steps:
@@ -60,10 +66,16 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           key: ${{ matrix.os }}
+
       - run: sudo ./ci/setup-debian.sh
-        if: matrix.os == 'ubuntu-latest' && matrix.cargo == 'cargo'
+        if: contains(matrix.os, 'ubuntu') && matrix.cargo == 'cargo'
       - run: sudo apt-get install musl-tools
-        if: matrix.cargo == 'cargo' && contains(matrix.target, 'musl')
+        if: contains(matrix.target, 'musl') && matrix.cargo == 'cargo'
+      - run: brew install sfml
+        if: contains(matrix.os, 'macos') && matrix.cargo == 'cargo'
+      - run: winget install sfml
+        if: contains(matrix.os, 'windows') && matrix.cargo == 'cargo'
+
       - name: Test Rust and C packages
         run: |
           ${{ matrix.cargo }} test \
