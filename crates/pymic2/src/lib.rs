@@ -4,7 +4,10 @@ pub mod utils;
 
 use std::sync::{Arc, Mutex};
 
-use pyo3::{exceptions::{PyRuntimeError, PyValueError}, prelude::*};
+use pyo3::{
+    exceptions::{PyRuntimeError, PyValueError},
+    prelude::*,
+};
 
 use ::mic2::{find_neovi_mics, NeoVIMIC};
 use usb::PyUsbDeviceInfo;
@@ -56,15 +59,30 @@ impl PyNeoVIMIC {
     }
 
     fn get_usb_io_info(&self) -> Option<PyUsbDeviceInfo> {
-        self.0.lock().unwrap().get_usb_io_info().as_ref().map(PyUsbDeviceInfo::from)
+        self.0
+            .lock()
+            .unwrap()
+            .get_usb_io_info()
+            .as_ref()
+            .map(PyUsbDeviceInfo::from)
     }
 
     fn get_usb_audio_info(&self) -> Option<PyUsbDeviceInfo> {
-        self.0.lock().unwrap().get_usb_audio_info().as_ref().map(PyUsbDeviceInfo::from)
+        self.0
+            .lock()
+            .unwrap()
+            .get_usb_audio_info()
+            .as_ref()
+            .map(PyUsbDeviceInfo::from)
     }
 
     fn get_usb_gps_info(&self) -> Option<PyUsbDeviceInfo> {
-        self.0.lock().unwrap().get_usb_gps_info().as_ref().map(PyUsbDeviceInfo::from)
+        self.0
+            .lock()
+            .unwrap()
+            .get_usb_gps_info()
+            .as_ref()
+            .map(PyUsbDeviceInfo::from)
     }
 
     fn get_usb_extra_info(&self) -> Vec<PyUsbDeviceInfo> {

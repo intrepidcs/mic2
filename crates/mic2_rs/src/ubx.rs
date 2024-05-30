@@ -64,12 +64,12 @@ pub struct PacketHeader {
     /// unsigned 16-Bit integer in Little Endian Format.
     //pub length: u16,
     pub payload: Vec<u8>,
-    /// CK_A and CK_B is a 16 Bit checksum. 
-    /// The checksum algorithm used is the 8-Bit Fletcher Algorithm, 
+    /// CK_A and CK_B is a 16 Bit checksum.
+    /// The checksum algorithm used is the 8-Bit Fletcher Algorithm,
     /// which is used in the TCP standard (RFC 1145).
     pub ck_a: u8,
-    /// CK_A and CK_B is a 16 Bit checksum. 
-    /// The checksum algorithm used is the 8-Bit Fletcher Algorithm, 
+    /// CK_A and CK_B is a 16 Bit checksum.
+    /// The checksum algorithm used is the 8-Bit Fletcher Algorithm,
     /// which is used in the TCP standard (RFC 1145).
     pub ck_b: u8,
 }
@@ -166,10 +166,10 @@ impl PacketHeader {
 
     /// Calculate the checksum and return it as a tuple (ck_a, ck_b).
     fn checksum(&self) -> (u8, u8) {
-        // The checksum is calculated over the packet, starting and 
+        // The checksum is calculated over the packet, starting and
         // including the CLASS field, up until, but excluding, the
         // Checksum Field
-        let bytes= self.data(false);
+        let bytes = self.data(false);
         let mut ck_a: u8 = 0;
         let mut ck_b: u8 = 0;
         // Don't calculate the checksum over the header
@@ -235,8 +235,11 @@ mod tests {
     use super::*;
 
     fn generate_header() -> PacketHeader {
-        let raw_bytes = vec![0xB5, 0x62, 0x06, 0x01, 0x08, 0x00, 0xF1, 0x00, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x02, 0x31];
-            
+        let raw_bytes = vec![
+            0xB5, 0x62, 0x06, 0x01, 0x08, 0x00, 0xF1, 0x00, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00,
+            0x02, 0x31,
+        ];
+
         let header = PacketHeader::from_bytes(&raw_bytes).unwrap();
         assert_eq!(
             header,
@@ -302,7 +305,7 @@ mod tests {
         header.ck_b = 0xAD;
         //assert!(header.verify_checksum().is_err());
     }
-    
+
     #[test]
     fn test_invalid_packet_header_from_bytes() {
         let raw_bytes = [0xA5, 0x62, 0x05, 0x01, 0x02, 0x05, 0x01, 0x0, 0x0];
@@ -313,7 +316,7 @@ mod tests {
     fn test_bad_data_checksum() {
         let mut header = generate_header();
         // lets corrupt the data
-        header.payload = vec![0,1,2,3,4,5,6,7];
+        header.payload = vec![0, 1, 2, 3, 4, 5, 6, 7];
         //assert!(header.verify_checksum().is_err());
     }
 

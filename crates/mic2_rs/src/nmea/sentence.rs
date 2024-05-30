@@ -1,6 +1,6 @@
 use super::types::{
-    nmea_str_to_vec, GpsDataFromNmeaString, GsaData, GstData, GsvDataCollection,
-    NMEAError, NMEASentenceType, Pubx00Data, Pubx03Data, Pubx04Data
+    nmea_str_to_vec, GpsDataFromNmeaString, GsaData, GstData, GsvDataCollection, NMEAError,
+    NMEASentenceType, Pubx00Data, Pubx03Data, Pubx04Data,
 };
 
 /// Represents a GPS NMEA Sentence
@@ -33,7 +33,7 @@ impl NMEASentence {
         })
     }
 
-    /// Creates a new Vec<Result<[NMEASentence], [NMEAError]>> from a byte array. 
+    /// Creates a new Vec<Result<[NMEASentence], [NMEAError]>> from a byte array.
     /// Expects the byte array to be able to convert into a UTF-8 String.
     pub fn from_bytes(bytes: &[u8]) -> Vec<Result<Self, NMEAError>> {
         // Convert to string
@@ -41,13 +41,11 @@ impl NMEASentence {
         let inner = match String::from_utf8(bytes.to_vec()) {
             Ok(s) => s,
             Err(_) => {
-                sentences.push(
-                    Err(NMEAError::InvalidData(
-                        "Failed to Create NMEA sentence from bytes".into(),
-                    ))
-                );
+                sentences.push(Err(NMEAError::InvalidData(
+                    "Failed to Create NMEA sentence from bytes".into(),
+                )));
                 return sentences;
-            },
+            }
         };
 
         for sentence in inner.split("\r\n") {
@@ -57,7 +55,9 @@ impl NMEASentence {
                 (true, false) => Err(NMEAError::PartialStart(sentence.into())),
                 (false, false) => Err(NMEAError::Partial(sentence.into())),
                 (false, true) => Err(NMEAError::PartialEnd(sentence.into())),
-                (true, true) => Ok(Self { inner: sentence.into() }),
+                (true, true) => Ok(Self {
+                    inner: sentence.into(),
+                }),
             });
         }
         sentences

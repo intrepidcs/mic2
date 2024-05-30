@@ -12,7 +12,7 @@ fn main() {
         .join("..") // build
         .clean();
     let header_path = PathBuf::from(&lib_path).join("mic2.h").clean();
-    
+
     cbindgen::Builder::new()
         .with_crate(crate_dir)
         .with_language(Language::C)
@@ -28,7 +28,7 @@ fn main() {
     println!("cargo:rerun-if-changed=src/mic2.hpp");
     println!("cargo:rerun-if-changed=src/mic2.cpp");
     println!("cargo:rerun-if-changed=../../Cargo.lock");
-    
+
     // Copy the C++ files
     std::fs::copy("src/mic2.cpp", lib_path.join("mic2.cpp")).unwrap();
     std::fs::copy("src/mic2.hpp", lib_path.join("mic2.hpp")).unwrap();
