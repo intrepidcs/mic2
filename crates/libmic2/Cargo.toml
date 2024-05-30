@@ -11,7 +11,7 @@ crate-type = ["cdylib", "staticlib"]
 [build-dependencies]
 cbindgen = "0.26.0"
 path-clean = "1.0.1"
-cc = "1.0.79"
+cc = "1.0.98"
 cmake = "0.1.50"
 
 [dependencies.mic2]
