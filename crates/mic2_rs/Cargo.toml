@@ -24,7 +24,7 @@ _skip-hil-testing = []
 [dependencies]
 #libftd2xx = { version = "0.32.2", features=[], optional = true }
 cfg-if = "1.0.0"
-sfml = { version = "0.21.0", optional = true }
+sfml = { version = "0.20.0", optional = true }
 nmea-parser = { version = "0.10.0", optional = true }
 serialport = { version = "4.3.0", optional = true }
 rusb = "0.9.4"

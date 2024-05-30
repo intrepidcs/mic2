@@ -1,8 +1,0 @@
-[build]
-pre-build = "ci/setup-debian.sh"
-# pre-build = [
-#     # "echo YES I AM WORKIND",
-#     "pwd","ls",
-#     "../ci/setup-debian.sh",
-#     # "exit 1"
-# ]
