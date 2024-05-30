@@ -1,13 +1,8 @@
-[target.aarch64-unknown-linux-gnu]
-pre-build = [
-    # "echo YES I AM WORKIND",
-    "pwd","ls",
-    "../ci/setup-debian.sh",
-    # "exit 1"
-]
-
-[target.armv7-unknown-linux-musleabihf]
-pre-build = [
-    # "echo YES I AM WORKIND",
-    "../ci/setup-debian.sh",
-]
+[build]
+pre-build = "ci/setup-debian.sh"
+# pre-build = [
+#     # "echo YES I AM WORKIND",
+#     "pwd","ls",
+#     "../ci/setup-debian.sh",
+#     # "exit 1"
+# ]
