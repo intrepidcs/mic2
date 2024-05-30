@@ -8,3 +8,8 @@ members = [
 exclude = [
     "examples/rust/find",
 ]
+
+[workspace.metadata.cross.target.aarch64-unknown-linux-gnu]
+pre-build = [
+    "./ci/setup-debian.sh"
+]
