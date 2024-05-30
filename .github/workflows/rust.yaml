@@ -65,7 +65,11 @@ jobs:
         # FIXME: just use this action once there is a release with
         # <https://github.com/cross-rs/cross/pull/1159>
         # uses: taiki-e/install-action@cross
-        run: cargo install --git https://github.com/cross-rs/cross.git --rev 19be83481fd3e50ea103d800d72e0f8eddb1c90c
+        run: >
+          cargo install
+            --git https://github.com/cross-rs/cross.git
+            --rev 19be83481fd3e50ea103d800d72e0f8eddb1c90c
+            cross
         
       - uses: Swatinem/rust-cache@v2
         with:
