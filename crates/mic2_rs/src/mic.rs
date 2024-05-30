@@ -467,6 +467,8 @@ mod tests {
     }
 
     #[test]
+    // FIXME: this takes 8 minutes on aarch64-macos CI
+    #[cfg(target_os = "linux")]
     fn test_audio() {
         Audio::find_neovi_mic2_audio().unwrap();
     }

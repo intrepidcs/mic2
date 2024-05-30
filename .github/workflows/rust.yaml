@@ -57,6 +57,7 @@ jobs:
               cargo: cargo
     name: "test ${{ matrix.target }}"
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -98,10 +99,10 @@ jobs:
         if: '!matrix.notest'
       - name: Test python package (native only)
         if: matrix.cargo == 'cargo'
-        run: |
-          ${{ matrix.cargo }} test
-            --features _skip-hil-testing
-            --target ${{ matrix.target }}
+        run: >
+          ${{ matrix.cargo }} test \
+            --features _skip-hil-testing \
+            --target ${{ matrix.target }} \
             --package mic2_python
 
   fmt:
