@@ -197,7 +197,7 @@ pub fn find_neovi_mics() -> Result<Vec<NeoVIMIC>> {
             audio_usb_info,
             gps_usb_info,
             extra_usb_info,
-            #[cfg(feature="io")]
+            #[cfg(feature = "io")]
             io,
             audio,
             gps,
@@ -449,7 +449,7 @@ mod tests {
             print!("neoVI MIC2 {} ", { device.get_serial_number() });
             match device.has_gps() {
                 true => println!("with GPS"),
-                false => println!(""),
+                false => println!(),
             }
         }
     }
@@ -482,38 +482,33 @@ mod tests {
 
             // Test the buzzer
             device.io_buzzer_enable(true).unwrap();
-            assert_eq!(
+            assert!(
                 device.io_buzzer_is_enabled().unwrap(),
-                true,
                 "Buzzer should be enabled and its not!"
             );
             std::thread::sleep(std::time::Duration::from_secs_f64(0.1f64));
             device.io_buzzer_enable(false).unwrap();
-            assert_eq!(
-                device.io_buzzer_is_enabled().unwrap(),
-                false,
+            assert!(
+                !device.io_buzzer_is_enabled().unwrap(),
                 "Buzzer should be disabled and its not!"
             );
 
             // Test the GPS LED
             device.io_gpsled_enable(true).unwrap();
-            assert_eq!(
+            assert!(
                 device.io_gpsled_is_enabled().unwrap(),
-                true,
                 "GPS LED should be enabled and its not!"
             );
             std::thread::sleep(std::time::Duration::from_secs_f64(0.1f64));
             device.io_gpsled_enable(false).unwrap();
-            assert_eq!(
-                device.io_gpsled_is_enabled().unwrap(),
-                false,
+            assert!(
+                !device.io_gpsled_is_enabled().unwrap(),
                 "GPS LED should be disabled and its not!"
             );
 
             // Test the button
-            assert_eq!(
-                device.io_button_is_pressed().unwrap(),
-                false,
+            assert!(
+                !device.io_button_is_pressed().unwrap(),
                 "Button shouldn't be pressed and it is!"
             );
 

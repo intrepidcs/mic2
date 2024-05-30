@@ -1,0 +1,50 @@
+name: Rust
+
+on:
+  push:
+    branches:
+      - main
+      - master
+    tags:
+      - '*'
+  pull_request:
+  workflow_dispatch:
+
+env:
+  RUSTDOCFLAGS: -D warnings
+  RUSTFLAGS: -D warnings
+  RUST_BACKTRACE: 1
+
+jobs:
+  clippy:
+    name: clippy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      - uses: Swatinem/rust-cache@v2
+      - run: ./ci/setup-debian.sh
+      - run: cargo clippy --all-features --all-targets
+
+  fmt:
+    name: formatting
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@nightly
+        with:
+            components: rustfmt
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo fmt --all -- --check
+  
+  doc:
+    name: docs
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@nightly
+      - uses: Swatinem/rust-cache@v2
+      - run: ./ci/setup-debian.sh
+      - run: cargo doc

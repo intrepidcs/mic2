@@ -1,10 +1,13 @@
 use core::slice;
-use mic2::{mic, nmea::types::{GPSInfo, GPSSatInfo, GpsNavigationStatus, GPSDMS}};
+use mic2::{
+    mic,
+    nmea::types::{GPSInfo, GPSSatInfo, GpsNavigationStatus, GPSDMS},
+};
 use std::{
     ffi::{c_void, CStr, CString},
     os::raw::c_char,
-    sync::Mutex,
     rc::Rc,
+    sync::Mutex,
 };
 
 // Version of the API in use. This will allow forward compatibility without having to recompile your application, unless otherwise specified.
@@ -138,7 +141,9 @@ impl CGpsNavigationStatus {
             GpsNavigationStatus::StandAlone3D => CGpsNavigationStatus::StandAlone3D,
             GpsNavigationStatus::Differential2D => CGpsNavigationStatus::Differential2D,
             GpsNavigationStatus::Differential3D => CGpsNavigationStatus::Differential3D,
-            GpsNavigationStatus::CombinedRKGPSDeadReckoning => CGpsNavigationStatus::CombinedRKGPSDeadReckoning,
+            GpsNavigationStatus::CombinedRKGPSDeadReckoning => {
+                CGpsNavigationStatus::CombinedRKGPSDeadReckoning
+            }
             GpsNavigationStatus::TimeOnly => CGpsNavigationStatus::TimeOnly,
         }
     }
@@ -212,20 +217,35 @@ pub struct CGPSInfo {
 
 impl From<GPSInfo> for CGPSInfo {
     fn from(gps_info: GPSInfo) -> Self {
-
         let (lat_dms, lat_dir, lat_valid) = match gps_info.latitude {
             Some((dms, dir)) => (dms, dir as c_char, true),
-            None => (GPSDMS { degrees: 0, minutes: 0, seconds: 0 }, char::default() as c_char, false),
+            None => (
+                GPSDMS {
+                    degrees: 0,
+                    minutes: 0,
+                    seconds: 0,
+                },
+                char::default() as c_char,
+                false,
+            ),
         };
 
         let (long_dms, long_dir, long_valid) = match gps_info.longitude {
             Some((dms, dir)) => (dms, dir as c_char, true),
-            None => (GPSDMS { degrees: 0, minutes: 0, seconds: 0 }, char::default() as c_char, false),
+            None => (
+                GPSDMS {
+                    degrees: 0,
+                    minutes: 0,
+                    seconds: 0,
+                },
+                char::default() as c_char,
+                false,
+            ),
         };
 
         let mut info = CGPSInfo {
             current_time: match gps_info.current_time {
-                Some(current_time) => current_time.timestamp(),
+                Some(current_time) => current_time.and_utc().timestamp(),
                 None => 0,
             },
             latitude: CGPSDMS::from(lat_dms),
@@ -301,15 +321,20 @@ extern "C" fn mic2_error_string(
 }
 /// Find all neovi MIC2s.
 ///
-/// @param devices    Pointer to an array of NeoVIMIC structs. These need to be allocated by the caller. 
+/// @param devices    Pointer to an array of NeoVIMIC structs. These need to be allocated by the caller.
 ///                   Unused devices should be freed using mic2_free() to avoid memory leaks.
-///                   Although this parameter is const, it is still modifed by the function. This is a convinience so all the other 
+///                   Although this parameter is const, it is still modifed by the function. This is a convinience so all the other
 ///                   function calls don't need a const cast.
 /// @param length     Length of devices. Must not be null, returns NeoVIMICErrTypeInvalidParameter if it is. Set to how many devices are found.
 ///
 /// @return           NeoVIMICErrTypeSuccess if successful, NeoVIMICErrTypeFailure if not
 #[no_mangle]
-extern "C" fn mic2_find(devices: *const NeoVIMIC, length: *mut u32, api_version: u32, neovi_mic_size: u32) -> NeoVIMICErrType {
+extern "C" fn mic2_find(
+    devices: *const NeoVIMIC,
+    length: *mut u32,
+    api_version: u32,
+    neovi_mic_size: u32,
+) -> NeoVIMICErrType {
     if devices.is_null() || length.is_null() {
         return NeoVIMICErrType::NeoVIMICErrTypeInvalidParameter;
     }
@@ -350,7 +375,6 @@ extern "C" fn mic2_find(devices: *const NeoVIMIC, length: *mut u32, api_version:
         }
         // Copy the handle over
         device.handle = Box::into_raw(Box::new(found_device)) as *mut _;
-        
     }
 
     NeoVIMICErrType::NeoVIMICErrTypeSuccess
@@ -369,7 +393,7 @@ extern "C" fn mic2_has_gps(device: *const NeoVIMIC, has_gps: *mut bool) -> NeoVI
     }
     unsafe { *has_gps = false };
 
-    let neovi_mic = unsafe { 
+    let neovi_mic = unsafe {
         let device = &*device;
         let handle = &*(device.handle as *mut NeoVIMICHandle);
         handle.inner.lock().unwrap()
@@ -388,7 +412,7 @@ extern "C" fn mic2_io_open(device: *const NeoVIMIC) -> NeoVIMICErrType {
     if device.is_null() {
         return NeoVIMICErrType::NeoVIMICErrTypeInvalidParameter;
     }
-    let neovi_mic = unsafe { 
+    let neovi_mic = unsafe {
         let device = &*device;
         let handle = &*(device.handle as *mut NeoVIMICHandle);
         handle.inner.lock().unwrap()
@@ -409,7 +433,7 @@ extern "C" fn mic2_io_close(device: *const NeoVIMIC) -> NeoVIMICErrType {
     if device.is_null() {
         return NeoVIMICErrType::NeoVIMICErrTypeInvalidParameter;
     }
-    let neovi_mic = unsafe { 
+    let neovi_mic = unsafe {
         let device = &*device;
         let handle = &*(device.handle as *mut NeoVIMICHandle);
         handle.inner.lock().unwrap()
@@ -433,7 +457,7 @@ extern "C" fn mic2_io_is_open(device: *const NeoVIMIC, is_open: *mut bool) -> Ne
     }
     unsafe { *is_open = false };
 
-    let neovi_mic = unsafe { 
+    let neovi_mic = unsafe {
         let device = &*device;
         let handle = &*(device.handle as *mut NeoVIMICHandle);
         handle.inner.lock().unwrap()
@@ -458,7 +482,7 @@ extern "C" fn mic2_io_buzzer_enable(device: *const NeoVIMIC, enable: bool) -> Ne
     if device.is_null() {
         return NeoVIMICErrType::NeoVIMICErrTypeInvalidParameter;
     }
-    let neovi_mic = unsafe { 
+    let neovi_mic = unsafe {
         let device = &*device;
         let handle = &*(device.handle as *mut NeoVIMICHandle);
         handle.inner.lock().unwrap()
@@ -485,7 +509,7 @@ extern "C" fn mic2_io_buzzer_is_enabled(
     }
     unsafe { *is_enabled = false };
 
-    let neovi_mic = unsafe { 
+    let neovi_mic = unsafe {
         let device = &*device;
         let handle = &*(device.handle as *mut NeoVIMICHandle);
         handle.inner.lock().unwrap()
@@ -510,7 +534,7 @@ extern "C" fn mic2_io_gpsled_enable(device: *const NeoVIMIC, enable: bool) -> Ne
     if device.is_null() {
         return NeoVIMICErrType::NeoVIMICErrTypeInvalidParameter;
     }
-    let neovi_mic = unsafe { 
+    let neovi_mic = unsafe {
         let device = &*device;
         let handle = &*(device.handle as *mut NeoVIMICHandle);
         handle.inner.lock().unwrap()
@@ -537,7 +561,7 @@ extern "C" fn mic2_io_gpsled_is_enabled(
     }
     unsafe { *is_enabled = false };
 
-    let neovi_mic = unsafe { 
+    let neovi_mic = unsafe {
         let device = &*device;
         let handle = &*(device.handle as *mut NeoVIMICHandle);
         handle.inner.lock().unwrap()
@@ -567,7 +591,7 @@ extern "C" fn mic2_io_button_is_pressed(
     }
     unsafe { *is_pressed = false };
 
-    let neovi_mic = unsafe { 
+    let neovi_mic = unsafe {
         let device = &*device;
         let handle = &*(device.handle as *mut NeoVIMICHandle);
         handle.inner.lock().unwrap()
@@ -588,17 +612,20 @@ extern "C" fn mic2_io_button_is_pressed(
 ///
 /// @return          NeoVIMICErrTypeSuccess if successful, NeoVIMICErrTypeFailure if not
 #[no_mangle]
-unsafe extern "C" fn mic2_audio_start(device: *const NeoVIMIC, sample_rate: u32) -> NeoVIMICErrType {
+unsafe extern "C" fn mic2_audio_start(
+    device: *const NeoVIMIC,
+    sample_rate: u32,
+) -> NeoVIMICErrType {
     if device.is_null() {
         return NeoVIMICErrType::NeoVIMICErrTypeInvalidParameter;
     }
 
-    let neovi_mic = unsafe { 
+    let neovi_mic = unsafe {
         let device = &*device;
         let handle = &*(device.handle as *mut NeoVIMICHandle);
         handle.inner.lock().unwrap()
     };
-    
+
     if neovi_mic.audio_start(sample_rate).is_ok() {
         NeoVIMICErrType::NeoVIMICErrTypeSuccess
     } else {
@@ -617,12 +644,12 @@ unsafe extern "C" fn mic2_audio_stop(device: *const NeoVIMIC) -> NeoVIMICErrType
         return NeoVIMICErrType::NeoVIMICErrTypeInvalidParameter;
     }
 
-    let neovi_mic = unsafe { 
+    let neovi_mic = unsafe {
         let device = &*device;
         let handle = &*(device.handle as *mut NeoVIMICHandle);
         handle.inner.lock().unwrap()
     };
-    
+
     if neovi_mic.audio_stop().is_ok() {
         NeoVIMICErrType::NeoVIMICErrTypeSuccess
     } else {
@@ -637,26 +664,28 @@ unsafe extern "C" fn mic2_audio_stop(device: *const NeoVIMIC) -> NeoVIMICErrType
 ///
 /// @return          NeoVIMICErrTypeSuccess if successful, NeoVIMICErrTypeFailure if not
 #[no_mangle]
-unsafe extern "C" fn mic2_audio_save(device: *const NeoVIMIC, path: *const c_char) -> NeoVIMICErrType {
+unsafe extern "C" fn mic2_audio_save(
+    device: *const NeoVIMIC,
+    path: *const c_char,
+) -> NeoVIMICErrType {
     if device.is_null() {
         return NeoVIMICErrType::NeoVIMICErrTypeInvalidParameter;
     }
 
     let path = CStr::from_ptr(path).to_str().unwrap();
 
-    let neovi_mic = unsafe { 
+    let neovi_mic = unsafe {
         let device = &*device;
         let handle = &*(device.handle as *mut NeoVIMICHandle);
         handle.inner.lock().unwrap()
     };
-    
+
     if neovi_mic.audio_save(path).is_ok() {
         NeoVIMICErrType::NeoVIMICErrTypeSuccess
     } else {
         NeoVIMICErrType::NeoVIMICErrTypeFailure
     }
 }
-
 
 /// Open the GPS interface on the device.
 ///
@@ -668,7 +697,7 @@ extern "C" fn mic2_gps_open(device: *const NeoVIMIC) -> NeoVIMICErrType {
     if device.is_null() {
         return NeoVIMICErrType::NeoVIMICErrTypeInvalidParameter;
     }
-    let neovi_mic = unsafe { 
+    let neovi_mic = unsafe {
         let device = &*device;
         let handle = &*(device.handle as *mut NeoVIMICHandle);
         handle.inner.lock().unwrap()
@@ -689,7 +718,7 @@ extern "C" fn mic2_gps_close(device: *const NeoVIMIC) -> NeoVIMICErrType {
     if device.is_null() {
         return NeoVIMICErrType::NeoVIMICErrTypeInvalidParameter;
     }
-    let neovi_mic = unsafe { 
+    let neovi_mic = unsafe {
         let device = &*device;
         let handle = &*(device.handle as *mut NeoVIMICHandle);
         handle.inner.lock().unwrap()
@@ -713,7 +742,7 @@ extern "C" fn mic2_gps_is_open(device: *const NeoVIMIC, is_open: *mut bool) -> N
     }
     unsafe { *is_open = false };
 
-    let neovi_mic = unsafe { 
+    let neovi_mic = unsafe {
         let device = &*device;
         let handle = &*(device.handle as *mut NeoVIMICHandle);
         handle.inner.lock().unwrap()
@@ -740,7 +769,7 @@ extern "C" fn mic2_gps_has_lock(device: *const NeoVIMIC, has_lock: *mut bool) ->
     }
     unsafe { *has_lock = false };
 
-    let neovi_mic = unsafe { 
+    let neovi_mic = unsafe {
         let device = &*device;
         let handle = &*(device.handle as *mut NeoVIMICHandle);
         handle.inner.lock().unwrap()
@@ -759,17 +788,21 @@ extern "C" fn mic2_gps_has_lock(device: *const NeoVIMIC, has_lock: *mut bool) ->
 /// @param device    Pointer to a NeoVIMIC structs. Returns NeoVIMICErrTypeInvalidParameter if nullptr
 /// @param info      Pointer to a CGPSInfo struct. Returns NeoVIMICErrTypeInvalidParameter if nullptr
 /// @param info_size Size of the CGPSInfo struct. Returns NeoVIMICErrTypeSizeMismatch if size is smaller than expected.
-/// 
+///
 /// @return          NeoVIMICErrTypeSuccess if successful, NeoVIMICErrTypeFailure if not
 #[no_mangle]
-extern "C" fn mic2_gps_info(device: *const NeoVIMIC, info: *mut CGPSInfo, info_size: usize) -> NeoVIMICErrType {
+extern "C" fn mic2_gps_info(
+    device: *const NeoVIMIC,
+    info: *mut CGPSInfo,
+    info_size: usize,
+) -> NeoVIMICErrType {
     if device.is_null() || info.is_null() {
         return NeoVIMICErrType::NeoVIMICErrTypeInvalidParameter;
     }
     if info_size < std::mem::size_of::<CGPSInfo>() {
         return NeoVIMICErrType::NeoVIMICErrTypeSizeMismatch;
     }
-    let neovi_mic = unsafe { 
+    let neovi_mic = unsafe {
         let device = &*device;
         let handle = &*(device.handle as *mut NeoVIMICHandle);
         handle.inner.lock().unwrap()
@@ -793,7 +826,7 @@ unsafe extern "C" fn mic2_free(device: *const NeoVIMIC) {
     if device.is_null() {
         return;
     }
-    unsafe { 
+    unsafe {
         let device = &*device;
         std::mem::drop(Box::from_raw(device.handle as *mut NeoVIMICHandle))
     };

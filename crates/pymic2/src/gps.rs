@@ -1,10 +1,9 @@
-use std::sync::{Arc, Mutex};
 use pyo3::{exceptions::PyValueError, prelude::*};
+use std::sync::{Arc, Mutex};
 
-use mic2::nmea::types::{GPSInfo, GPSDMS, GpsNavigationStatus, GPSSatInfo};
+use mic2::nmea::types::{GPSInfo, GPSSatInfo, GpsNavigationStatus, GPSDMS};
 
 use crate::utils::create_python_object;
-
 
 #[pyclass]
 #[derive(Clone, Copy)]
@@ -28,7 +27,9 @@ impl PyGpsNavigationStatus {
             GpsNavigationStatus::StandAlone3D => PyGpsNavigationStatus::StandAlone3D,
             GpsNavigationStatus::Differential2D => PyGpsNavigationStatus::Differential2D,
             GpsNavigationStatus::Differential3D => PyGpsNavigationStatus::Differential3D,
-            GpsNavigationStatus::CombinedRKGPSDeadReckoning => PyGpsNavigationStatus::CombinedRKGPSDeadReckoning,
+            GpsNavigationStatus::CombinedRKGPSDeadReckoning => {
+                PyGpsNavigationStatus::CombinedRKGPSDeadReckoning
+            }
             GpsNavigationStatus::TimeOnly => PyGpsNavigationStatus::TimeOnly,
         }
     }
@@ -84,11 +85,15 @@ impl PyGPSInfo {
     }
 
     fn satellites(&self) -> PyResult<Vec<PyGPSSatInfo>> {
-        Ok(self.0.lock().unwrap().satellites
-        .clone()
-        .into_iter()
-        .map(PyGPSSatInfo::from)
-        .collect::<Vec<PyGPSSatInfo>>())
+        Ok(self
+            .0
+            .lock()
+            .unwrap()
+            .satellites
+            .clone()
+            .into_iter()
+            .map(PyGPSSatInfo::from)
+            .collect::<Vec<PyGPSSatInfo>>())
     }
 
     #[getter]
@@ -198,10 +203,9 @@ impl PyGPSInfo {
 
 impl PyGPSInfo {
     pub fn from(gps_info: &GPSInfo) -> Self {
-        Self (Arc::new(Mutex::new(gps_info.to_owned())))
+        Self(Arc::new(Mutex::new(gps_info.to_owned())))
     }
 }
-
 
 create_python_object!(PyGPSDMS, "GPSDMS", GPSDMS);
 #[pymethods]
@@ -236,7 +240,6 @@ impl PyGPSDMS {
     fn seconds(&self) -> u8 {
         self.0.lock().unwrap().seconds
     }
-
 }
 
 impl PyGPSDMS {

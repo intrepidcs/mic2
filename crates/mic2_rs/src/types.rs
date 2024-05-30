@@ -1,6 +1,5 @@
-use std::fmt;
 use serialport;
-
+use std::fmt;
 
 #[derive(Debug, Clone)]
 pub enum Error {

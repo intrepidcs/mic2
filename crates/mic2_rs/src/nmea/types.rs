@@ -295,15 +295,17 @@ impl GPSDMS {
         let dd_mm: &str = &value.into();
         // Check the length is at least 6 DDMM.MM
         if dd_mm.len() < 7 || !dd_mm.contains('.') {
-            return Err(NMEAError::InvalidData(
-                format!("Couldn't convert value {} into a valid GPS DMS", &dd_mm),
-            ));
+            return Err(NMEAError::InvalidData(format!(
+                "Couldn't convert value {} into a valid GPS DMS",
+                &dd_mm
+            )));
         }
         let values: Vec<&str> = dd_mm.split('.').collect();
         if values.len() < 2 {
-            return Err(NMEAError::InvalidData(
-                format!("Couldn't convert value {} into a valid GPS DMS", &dd_mm),
-            ));
+            return Err(NMEAError::InvalidData(format!(
+                "Couldn't convert value {} into a valid GPS DMS",
+                &dd_mm
+            )));
         }
         let (degrees, minutes, seconds) = if values[1].len() <= 2 {
             // hhmmss.ss
@@ -352,7 +354,6 @@ impl GPSDMS {
         if decimal_degrees > 90f64 {
             // ddmm.mmmmm format
             todo!();
-
         }
         let degrees = decimal_degrees as u16;
         let mut minutes_f64 = (decimal_degrees - degrees as f64) * 60.0;
@@ -1002,9 +1003,7 @@ impl GpsDataFromNmeaString for Pubx03Data {
                             lock_time: items[offset + 5].parse::<u8>()?,
                         })
                     }
-                    Ok(Pubx03Data {
-                        satellites,
-                    })
+                    Ok(Pubx03Data { satellites })
                 }
             }
             _ => Err(NMEAError::InvalidData(
@@ -1202,12 +1201,10 @@ impl GPSInfo {
                 self.vdop = Some(data.vdop);
                 self.tdop = Some(data.tdop);
             }
-            NMEASentenceType::PUBX03(data) => {
-                self.satellites = data.satellites.clone();
-            }
+            NMEASentenceType::PUBX03(data) => self.satellites.clone_from(&data.satellites),
             NMEASentenceType::PUBX04(data) => {
                 if let (Some(date), Some(time)) = (data.current_date, data.current_time) {
-                     self.current_time = Some(date.and_time(time));
+                    self.current_time = Some(date.and_time(time));
                 }
                 self.clock_bias = Some(data.clock_bias);
                 self.clock_drift = Some(data.clock_drift);
