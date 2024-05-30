@@ -36,6 +36,15 @@ jobs:
             - target: x86_64-unknown-linux-gnu
               os: ubuntu-latest
               cargo: cargo
+            - target: aarch64-unknown-linux-gnu
+              os: ubuntu-latest
+              cargo: cross
+            - target: x86_64-unknown-windows-msvc
+              os: windows-latest
+              cargo: cargo
+            - target: x86_64-unknown-windows-gnu
+              os: windows-latest
+              cargo: cargo
     name: "test ${{ matrix.target }}"
     runs-on: ${{ matrix.os }}
     steps:
