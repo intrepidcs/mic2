@@ -92,10 +92,10 @@ jobs:
           ${{ matrix.cargo }} test \
             --features _skip-hil-testing \
             --target ${{ matrix.target }} \
-            --package mic2
+            --package mic2 -vv
           ${{ matrix.cargo }} test \
             --target ${{ matrix.target }} \
-            --package libmic2
+            --package libmic2 -vv
         shell: bash
         if: '!matrix.notest'
       - name: Test python package (native only)
