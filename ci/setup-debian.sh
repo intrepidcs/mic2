@@ -3,7 +3,7 @@
 
 set -eaux
 
-if [ -n "$CROSS_DEB_ARCH" ]; then
+if [ -n "${CROSS_DEB_ARCH:-}" ]; then
   dpkg --add-architecture "$CROSS_DEB_ARCH"
   sfx=":${CROSS_DEB_ARCH}"
 fi
