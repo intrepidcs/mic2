@@ -81,13 +81,9 @@ jobs:
       - if: contains(matrix.target, 'musl') && matrix.cargo == 'cargo'
         run: sudo apt-get install musl-tools
       - if: contains(matrix.os, 'macos') && matrix.cargo == 'cargo'
-        run: |
-          brew install sfml
-          echo "SFML_INCLUDE_DIR=$(brew --prefix)/opt/sfml/include" >> "$GITHUB_ENV"
-          echo "SFML_LIBS_DIR=$(brew --prefix)/lib" >> "$GITHUB_ENV"
+        run: ./ci/setup-macos.sh
       - if: contains(matrix.os, 'windows') && matrix.cargo == 'cargo'
         run: vcpkg install sfml
-        
 
       - name: Test Rust and C packages
         run: >

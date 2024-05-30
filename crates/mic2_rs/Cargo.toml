@@ -43,3 +43,5 @@ sfml = { version = "0.20.0", optional = true }
 # Use a newer version for non-linux bugfixes. Requires SFML 2.6
 sfml = { version = "0.21.0", optional = true }
 
+[workspace.metadata.cross.build]
+pre-build = "ci/setup-debian.sh"

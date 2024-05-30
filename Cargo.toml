@@ -8,18 +8,3 @@ members = [
 exclude = [
     "examples/rust/find",
 ]
-
-[workspace.metadata.cross.build]
-pre-build = "ci/setup-debian.sh"
-# [workspace.metadata.cross.target.aarch64-unknown-linux-gnu]
-# pre-build = [
-#     "echo YES I AM WORKIND",
-#     "./ci/setup-debian.sh",
-#     "exit 1"
-# ]
-
-# [workspace.metadata.cross.target.armv7-unknown-linux-musleabihf]
-# pre-build = [
-#     "echo YES I AM WORKIND",
-#     "./ci/setup-debian.sh",
-# ]
