@@ -52,14 +52,16 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@nightly
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
       - uses: taiki-e/install-action@cross
         if: matrix.cargo == 'cross'
       - uses: Swatinem/rust-cache@v2
         with:
           key: ${{ matrix.os }}
       - run: sudo ./ci/setup-debian.sh
-        if: matrix.os == 'ubuntu-latest'
+        if: matrix.os == 'ubuntu-latest' && matrix.cargo == 'cargo'
       - run: sudo apt-get install musl-tools
         if: matrix.cargo == 'cargo' && contains(matrix.target, 'musl')
       - name: Test Rust and C packages
