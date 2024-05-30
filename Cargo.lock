@@ -440,7 +440,8 @@ dependencies = [
  "rusb",
  "serde",
  "serialport",
- "sfml",
+ "sfml 0.20.0",
+ "sfml 0.21.0",
 ]
 
 [[package]]
@@ -772,6 +773,20 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cc90f712d9a93d8db54e53281dbb6dbb29e443abcc83e185df4bbe60ba6e8311"
 dependencies = [
  "bitflags 1.3.2",
+ "cc",
+ "link-cplusplus",
+ "num-traits",
+ "once_cell",
+ "widestring",
+]
+
+[[package]]
+name = "sfml"
+version = "0.21.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "42445c6febfd55d5cdbc70d97cd8dc975031664e67fd929418c41a33cba999af"
+dependencies = [
+ "bitflags 2.5.0",
  "cc",
  "link-cplusplus",
  "num-traits",
