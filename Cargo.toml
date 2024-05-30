@@ -2,7 +2,7 @@
 resolver = "2"
 members = [
     "crates/mic2_rs",
-    "crates/pymic2",
+    "crates/mic2-py",
     "crates/libmic2",
 ]
 exclude = [

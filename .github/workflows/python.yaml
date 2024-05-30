@@ -144,7 +144,7 @@ jobs:
         uses: PyO3/maturin-action@v1
         with:
           command: sdist
-          args: --out dist --manifest-path crates/pymic2/Cargo.toml
+          args: --out dist --manifest-path crates/mic2-py/Cargo.toml
       - name: Upload sdist
         uses: actions/upload-artifact@v4
         with:
