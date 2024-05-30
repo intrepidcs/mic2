@@ -3,9 +3,17 @@
 
 set -eaux
 
+# Set the target platform, if provided
 if [ -n "${CROSS_DEB_ARCH:-}" ]; then
-  dpkg --add-architecture "$CROSS_DEB_ARCH"
-  sfx=":${CROSS_DEB_ARCH}"
+  if [ "$CROSS_DEB_ARCH" = "musl-linux-armhf" ]; then
+    # Cross gives the wrong debian architecutre
+    arch="armhf"
+  else
+    arch="$CROSS_DEB_ARCH"
+  fi
+  
+  dpkg --add-architecture "$arch"
+  sfx=":${arch}"
 fi
 
 apt-get update
