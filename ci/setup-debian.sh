@@ -16,7 +16,7 @@ if [ -n "${CROSS_DEB_ARCH:-}" ]; then
     chmod +x "/etc/profile.d/cfg-sfml.sh"
     cat /etc/profile.d/cfg-sfml.sh
     printenv
-    source /etc/profile.d/cfg-sfml.sh
+    . /etc/profile.d/cfg-sfml.sh
     printenv
   else
     arch="$CROSS_DEB_ARCH"
