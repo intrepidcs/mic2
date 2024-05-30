@@ -39,9 +39,11 @@ jobs:
             - target: aarch64-unknown-linux-gnu
               os: ubuntu-latest
               cargo: cross
-            - target: armv7-unknown-linux-musleabihf
-              os: ubuntu-latest
-              cargo: cross
+            # FIXME: SFML_* env variables don't seem to do anything, build can't
+            # find the libraries.
+            # - target: armv7-unknown-linux-musleabihf
+            #   os: ubuntu-latest
+            #   cargo: cross
             # FIXME: figure out install location from vcpkg
             # - target: x86_64-pc-windows-msvc
             #   os: windows-latest
@@ -65,7 +67,15 @@ jobs:
         with:
           targets: ${{ matrix.target }}
       - if: matrix.cargo == 'cross'
-        uses: taiki-e/install-action@cross
+        # FIXME: just use this action once there is a new release with newer
+        # docker images
+        # uses: taiki-e/install-action@cross
+        run: >
+          cargo install \
+            --git https://github.com/cross-rs/cross.git \
+            --rev 19be83481fd3e50ea103d800d72e0f8eddb1c90c \
+            cross
+        
       - uses: Swatinem/rust-cache@v2
         with:
           key: ${{ matrix.os }}
