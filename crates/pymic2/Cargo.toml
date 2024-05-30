@@ -9,8 +9,8 @@ name = "pymic2"
 crate-type = ["cdylib"]
 
 [dependencies]
-chrono = "0.4.26"
-pyo3 = { version = "0.21.0", features = ["chrono", "extension-module"] }
+chrono = "0.4.38"
+pyo3 = { version = "0.21.2", features = ["chrono", "extension-module"] }
 
 [dependencies.mic2]
 path = "../mic2_rs"
