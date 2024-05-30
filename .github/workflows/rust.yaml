@@ -67,14 +67,18 @@ jobs:
         with:
           key: ${{ matrix.os }}
 
-      - run: sudo ./ci/setup-debian.sh
-        if: contains(matrix.os, 'ubuntu') && matrix.cargo == 'cargo'
-      - run: sudo apt-get install musl-tools
-        if: contains(matrix.target, 'musl') && matrix.cargo == 'cargo'
-      - run: brew install sfml
-        if: contains(matrix.os, 'macos') && matrix.cargo == 'cargo'
-      - run: winget install sfml
-        if: contains(matrix.os, 'windows') && matrix.cargo == 'cargo'
+      - if: contains(matrix.os, 'ubuntu') && matrix.cargo == 'cargo'
+        run: sudo ./ci/setup-debian.sh
+      - if: contains(matrix.target, 'musl') && matrix.cargo == 'cargo'
+        run: sudo apt-get install musl-tools
+      - if: contains(matrix.os, 'macos') && matrix.cargo == 'cargo'
+        run: |
+          brew install sfml
+          echo "SFML_INCLUDE_DIR=$(brew --prefix)/opt/sfml/include" >> "$GITHUB_ENV"
+          echo "SFML_LIBS_DIR=$(brew --prefix)/lib" >> "$GITHUB_ENV"
+      - if: contains(matrix.os, 'windows') && matrix.cargo == 'cargo'
+        run: choco install sfml
+        
 
       - name: Test Rust and C packages
         run: |
