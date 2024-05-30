@@ -13,6 +13,7 @@ if [ -n "${CROSS_DEB_ARCH:-}" ]; then
     # (this is a docker container!)
     echo "export SFML_INCLUDE_DIR=/usr/include" >> "/etc/profile.d/cfg-sfml.sh"
     echo "export SFML_LIBS_DIR=/usr/lib/arm-linux-gnueabihf" >> "/etc/profile.d/cfg-sfml.sh"
+    chmod +x "/etc/profile.d/cfg-sfml.sh"
   else
     arch="$CROSS_DEB_ARCH"
   fi
