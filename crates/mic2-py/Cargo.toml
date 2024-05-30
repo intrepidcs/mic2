@@ -1,5 +1,5 @@
 [package]
-name = "mic2_python"
+name = "mic2-py"
 version = "0.1.0"
 edition = "2021"
 

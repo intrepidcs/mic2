@@ -105,7 +105,7 @@ jobs:
         run: >
           ${{ matrix.cargo }} test \
             --target ${{ matrix.target }} \
-            --package mic2_python
+            --package mic2-py
 
   fmt:
     name: formatting
