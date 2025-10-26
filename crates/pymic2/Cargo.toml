@@ -10,7 +10,7 @@ crate-type = ["cdylib"]
 
 [dependencies]
 chrono = "0.4.38"
-pyo3 = { version = "0.21.2", features = ["chrono", "extension-module"] }
+pyo3 = { version = "0.27.1", features = ["chrono", "extension-module"] }
 
 [dependencies.mic2]
 path = "../mic2_rs"

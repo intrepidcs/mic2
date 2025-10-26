@@ -42,7 +42,7 @@ impl Audio {
             return Err(Error::CriticalError("Audio capture is unavailable!".into()));
         }
         let devices = sfml::audio::capture::available_devices();
-        for device in &*devices {
+        for device in devices.iter() {
             //println!("{}", device.to_str().unwrap());
             // Match our expected audio device
             if !re.is_match(device.to_str().unwrap()) {
@@ -68,7 +68,7 @@ impl Audio {
     }
 
     pub fn start(&self, sample_rate: u32) -> Result<()> {
-        if !self.recorder.borrow_mut().start(sample_rate) {
+        if self.recorder.borrow_mut().start(sample_rate).is_err() {
             return Err(Error::CriticalError("Failed to start recording!".into()));
         }
         Ok(())
@@ -81,11 +81,12 @@ impl Audio {
 
     pub fn save_to_file(&self, fname: impl Into<String>) -> Result<()> {
         let fname: String = fname.into();
-        if !self
+        if self
             .recorder
             .borrow_mut()
             .buffer()
             .save_to_file(fname.as_str())
+            .is_err()
         {
             return Err(Error::CriticalError(format!(
                 "Failed to save capture from {} to file {}",
@@ -103,7 +104,7 @@ pub fn record_default_capture() {
 
     let mut recorder = sfml::audio::SoundBufferRecorder::default();
     println!("Recording {}...", recorder.device());
-    if !recorder.start(44100) {
+    if recorder.start(44100).is_err() {
         panic!("Failed to start recording!");
     }
     std::thread::sleep(time::Duration::from_millis(3000));
@@ -111,7 +112,7 @@ pub fn record_default_capture() {
     println!("Finished Recording");
 
     let buffer = recorder.buffer();
-    if !buffer.save_to_file("/home/drebbe/test.wav") {
+    if buffer.save_to_file("/home/drebbe/test.wav").is_err() {
         panic!("Failed to save file!");
     }
 }

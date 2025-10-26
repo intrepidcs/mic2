@@ -56,9 +56,17 @@ impl PyGPSInfo {
     }
 
     #[getter]
-    fn current_time(&self, py: Python) -> PyResult<PyObject> {
+    fn current_time(&self, py: Python) -> PyResult<Py<PyAny>> {
+        use pyo3::types::PyDateTime;
         match self.0.lock().unwrap().current_time {
-            Some(current_time) => Ok(current_time.to_object(py)),
+            Some(current_time) => {
+                let py_datetime = PyDateTime::from_timestamp(
+                    py,
+                    current_time.and_utc().timestamp() as f64,
+                    None,
+                )?;
+                Ok(py_datetime.into())
+            },
             None => Err(PyValueError::new_err("current_time not valid")),
         }
     }
